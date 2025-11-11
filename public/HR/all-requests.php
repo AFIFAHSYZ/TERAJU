@@ -75,7 +75,6 @@ $types = $pdo->query("SELECT id, name FROM leave_types ORDER BY name ASC")->fetc
       <p>Review and manage all leave requests</p>
       <hr><br>
 
-      <!-- ✅ Added Search Field -->
       <form method="GET" class="filter-form">
         <input type="text" name="search" placeholder="Search by name or email" value="<?= htmlspecialchars($search) ?>">
 
