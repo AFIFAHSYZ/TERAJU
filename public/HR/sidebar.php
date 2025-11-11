@@ -13,26 +13,21 @@
         <a href="javascript:void(0)">Employees<span class="arrow">›</span></a>
         <ul class="dropdown-menu">
           <li><a href="employees.php" >Employee List</a></li>
+          <li><a href="all-requests.php">All Requests</a></li>
+
         </ul>
       </li>
 
       <li class="has-dropdown">
         <a href="javascript:void(0)">Leave Requests<span class="arrow">›</span></a>
         <ul class="dropdown-menu">
-          <li><a href="all-requests.php">All Requests</a></li>
-          <li><a href="holidays.php">Manage Public Holidays</a></li>
           <li><a href="hr-request.php">Request Leaves</a></li>
           <li><a href="hr-leaves.php">My Request History</a></li>
 
         </ul>
       </li>
-
-      <li class="has-dropdown">
-        <a href="javascript:void(0)">Reports & Analytics<span class="arrow">›</span></a>
-        <ul class="dropdown-menu">
+          <li><a href="holidays.php">Public Holidays</a></li>
           <li><a href="hr-reports.php">Leave Reports</a></li>
-        </ul>
-      </li>
         <li><a href="hr-profile.php" >Profile</a></li>
         <li><a href="../logout.php" class="logout">Logout</a></li>
 
