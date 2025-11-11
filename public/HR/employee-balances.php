@@ -69,46 +69,14 @@ $balances = $stmt->fetchAll(PDO::FETCH_ASSOC);
   .btn-back { background: #64748b; color: #fff; padding: 6px 12px; border-radius: 6px; text-decoration: none; font-weight: 500; transition: 0.2s; }
   .btn-back:hover { background: #475569; }
 
-  /* Carry forward column */
 /* Carry Forward Cell */
-.carry-cell {
-  position: relative;
-  text-align: center;
-  min-width: 100px;
-}
-
-.carry-value {
-  display: inline-block;
-  text-align: center;
-  font-weight: 500;
-}
-
-input.carry-input {
-  width: 60px;
-  text-align: center;
-  padding: 4px;
-  border: 1px solid #cbd5e1;
-  border-radius: 6px;
-}
-
-.edit-btn,
-.save-btn {
-  position: absolute;
-  right: 6px;
-  top: 50%;
-  transform: translateY(-50%);
-  background: none;
-  border: none;
-  cursor: pointer;
-  font-size: 1.1rem;
-  transition: 0.2s;
-}
-
-.edit-btn { color: #2563eb; }
-.save-btn { color: #16a34a; display: none; }
-
-.edit-btn:hover { transform: translateY(-50%) scale(1.15); }
-.save-btn:hover { transform: translateY(-50%) scale(1.15); }
+  .carry-cell {position: relative;text-align: center;min-width: 100px;}
+  .carry-value {display: inline-block;text-align: center;font-weight: 500;}
+  input.carry-input { width: 60px;text-align: center;  padding: 4px;border: 1px solid #cbd5e1;border-radius: 6px;}
+  .edit-btn,.save-btn {position: absolute;right: 6px;top: 50%;transform: translateY(-50%);background: none;border: none;cursor: pointer;font-size: 1.1rem;transition: 0.2s;}
+  .edit-btn { color: #2563eb; }.save-btn { color: #16a34a; display: none; }
+  .edit-btn:hover { transform: translateY(-50%) scale(1.15); }
+  .save-btn:hover { transform: translateY(-50%) scale(1.15); }
   .status-msg { position: fixed; top: 20px; right: 20px; background: #16a34a; color: #fff; padding: 10px 15px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); opacity: 0; transition: opacity 0.3s ease; }
   .status-msg.show { opacity: 1; }
 </style>
@@ -156,7 +124,7 @@ input.carry-input {
     <div class="carry-cell" data-leave-id="<?= $b['leave_type_id'] ?>" data-user-id="<?= $emp_id ?>">
       <span class="carry-value"><?= htmlspecialchars($b['carry_forward']) ?></span>
       <input type="number" class="carry-input" min="0" max="5"
-             value="<?= htmlspecialchars($b['carry_forward']) ?>" style="display:none;">
+        value="<?= htmlspecialchars($b['carry_forward']) ?>" style="display:none;">
       <button class="edit-btn" title="Edit">✏️</button>
       <button class="save-btn" title="Save">✅</button>
     </div>
