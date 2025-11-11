@@ -7,7 +7,7 @@ try {
     $stmt = $pdo->prepare("SELECT name FROM users WHERE id = ?");
     $stmt->execute([$user_id]);
     $user = $stmt->fetch(PDO::FETCH_ASSOC);
- } catch (PDOException $e) {
+    } catch (PDOException $e) {
     echo "Database error: " . htmlspecialchars($e->getMessage());
 }
 
@@ -24,8 +24,8 @@ try {
         FROM leave_balances lb
         JOIN leave_types lt ON lb.leave_type_id = lt.id
         WHERE lb.user_id = ?
-          AND lt.name = 'Annual Leave'
-          AND lb.year = EXTRACT(YEAR FROM CURRENT_DATE)
+        AND lt.name = 'Annual Leave'
+        AND lb.year = EXTRACT(YEAR FROM CURRENT_DATE)
     ");
     $stmt->execute([$user_id]);
     $annualLeaveBalance = $stmt->fetchColumn();
@@ -67,11 +67,11 @@ try {
 try {
     $stmt = $pdo->prepare(
         "SELECT lt.name AS type, lr.start_date AS start, lr.end_date AS end, lr.status
-         FROM leave_requests lr
-         JOIN leave_types lt ON lr.leave_type_id = lt.id
-         WHERE lr.user_id = ?
-         ORDER BY lr.applied_at DESC
-         LIMIT 3"
+            FROM leave_requests lr
+            JOIN leave_types lt ON lr.leave_type_id = lt.id
+            WHERE lr.user_id = ?
+            ORDER BY lr.applied_at DESC
+            LIMIT 3"
     );
     $stmt->execute([$user_id]);
     $recentLeaves = $stmt->fetchAll(PDO::FETCH_ASSOC);
