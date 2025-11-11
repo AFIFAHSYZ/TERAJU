@@ -17,7 +17,9 @@ if ($user['position'] !== 'hr') {
 }
 
 $success = $error = "";
+$editHoliday = null; // for editing prefill
 
+// Handle POST actions
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
     if ($_POST['action'] === 'add') {
         $name = trim($_POST['name']);
@@ -26,14 +28,35 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             $stmt = $pdo->prepare("INSERT INTO public_holidays (name, holiday_date) VALUES (:n, :d)");
             $stmt->execute([':n' => $name, ':d' => $date]);
             $success = "Holiday added successfully.";
+        } else {
+            $error = "Please fill all fields.";
         }
     } elseif ($_POST['action'] === 'delete') {
         $id = $_POST['id'];
         $pdo->prepare("DELETE FROM public_holidays WHERE id = :id")->execute([':id' => $id]);
-        $success = "Holiday deleted.";
+        $success = "Holiday deleted successfully.";
+    } elseif ($_POST['action'] === 'edit') {
+        // Fetch holiday for editing
+        $id = $_POST['id'];
+        $stmt = $pdo->prepare("SELECT * FROM public_holidays WHERE id = :id");
+        $stmt->execute([':id' => $id]);
+        $editHoliday = $stmt->fetch(PDO::FETCH_ASSOC);
+    } elseif ($_POST['action'] === 'update') {
+        // Update existing holiday
+        $id = $_POST['id'];
+        $name = trim($_POST['name']);
+        $date = $_POST['date'];
+        if ($name && $date) {
+            $stmt = $pdo->prepare("UPDATE public_holidays SET name = :n, holiday_date = :d WHERE id = :id");
+            $stmt->execute([':n' => $name, ':d' => $date, ':id' => $id]);
+            $success = "Holiday updated successfully.";
+        } else {
+            $error = "All fields are required.";
+        }
     }
 }
 
+// Fetch holidays for listing
 $holidays = $pdo->query("SELECT * FROM public_holidays ORDER BY holiday_date ASC")->fetchAll(PDO::FETCH_ASSOC);
 ?>
 <!DOCTYPE html>
@@ -42,7 +65,7 @@ $holidays = $pdo->query("SELECT * FROM public_holidays ORDER BY holiday_date ASC
   <meta charset="UTF-8">
   <title>Public Holidays | HR Dashboard</title>
   <link rel="stylesheet" href="../../assets/css/style.css">
-      <style>    
+  <style>    
     .filter-form {display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; align-items: flex-end; background: #fff; padding: 15px;border-radius: 10px; box-shadow: 0 3px 10px rgba(0,0,0,0.05);}
     .filter-form label { display: block; font-size: 0.9rem; color: #334155; margin-bottom: 5px; }
     .filter-form input, .filter-form select {padding: 8px 10px; border-radius: 8px; border: 1px solid #cbd5e1;font-size: 0.9rem; width: 150px;}
@@ -56,8 +79,7 @@ $holidays = $pdo->query("SELECT * FROM public_holidays ORDER BY holiday_date ASC
     .leave-table td form {margin: 0; }
     .leave-table td:last-child {text-align: center;padding: 4px 6px;}
     .leave-table button {padding: 4px 8px;font-size: 0.8rem; border-radius: 6px;}
-</style>
-
+  </style>
 </head>
 <body>
 <div class="layout">
@@ -67,34 +89,42 @@ $holidays = $pdo->query("SELECT * FROM public_holidays ORDER BY holiday_date ASC
   <main class="main-content">
     <div class="card">
       <h2>Public Holidays</h2>
-      <p>Review and manage all public holiday</p><hr><br>
+      <p>Review and manage all public holidays</p><hr><br>
 
-      <?php if ($success): ?><div class="success-box"><?= $success ?></div><?php endif; ?>
+      <?php if ($success): ?><div class="success-box"><?= htmlspecialchars($success) ?></div><?php endif; ?>
+      <?php if ($error): ?><div class="error-box"><?= htmlspecialchars($error) ?></div><?php endif; ?>
 
-      <form method="POST" class="filter-form" style="gap:10px;">
-        <input type="text" name="name" placeholder="Holiday Name" required>
-        <input type="date" name="date" required>
-        <button type="submit" name="action" value="add" class="btn-submit">Add</button>
+      <!-- Add or Edit form -->
+      <form method="POST" class="filter-form">
+        <input type="hidden" name="id" value="<?= $editHoliday['id'] ?? '' ?>">
+        <input type="text" name="name" placeholder="Holiday Name" value="<?= htmlspecialchars($editHoliday['name'] ?? '') ?>" required>
+        <input type="date" name="date" value="<?= $editHoliday['holiday_date'] ?? '' ?>" required>
+        <?php if ($editHoliday): ?>
+          <button type="submit" name="action" value="update">Update</button>
+          <a href="holidays.php" >Cancel</a>
+        <?php else: ?>
+          <button type="submit" name="action" value="add">Add</button>
+        <?php endif; ?>
       </form>
 
       <table class="leave-table" style="margin-top:15px;">
-        <thead><tr><th>ID</th><th>Name</th><th>Date</th><th>Action</th></tr></thead>
-<tbody>
-  <?php foreach ($holidays as $index => $h): ?>
-    <tr>
-      <td><?= $index + 1 ?></td> <!-- Show row number -->
-      <td><?= htmlspecialchars($h['name']) ?></td>
-      <td><?= date('d M Y', strtotime($h['holiday_date'])) ?></td>
-      <td>
-        <form method="POST"  class="filter-form" style="gap:10px;">
-          <input type="hidden" name="id" value="<?= $h['id'] ?>">
-          <button name="action" value="edit" class="btn" onclick="return confirm('Edit this holiday?')"> Edit</button>
-          <button name="action" value="delete" class="btn" onclick="return confirm('Delete this holiday?')">🗑 Delete</button>
-        </form>
-      </td>
-    </tr>
-  <?php endforeach; ?>
-</tbody>
+        <thead><tr><th>#</th><th>Name</th><th>Date</th><th>Action</th></tr></thead>
+        <tbody>
+          <?php foreach ($holidays as $index => $h): ?>
+            <tr>
+              <td><?= $index + 1 ?></td>
+              <td><?= htmlspecialchars($h['name']) ?></td>
+              <td><?= date('d M Y', strtotime($h['holiday_date'])) ?></td>
+              <td>
+                <form method="POST" class="filter-form">
+                  <input type="hidden" name="id" value="<?= $h['id'] ?>">
+                  <button name="action" value="edit">✏ Edit</button>
+                  <button name="action" value="delete" onclick="return confirm('Delete this holiday?')">🗑 Delete</button>
+                </form>
+              </td>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
       </table>
     </div>
   </main>
