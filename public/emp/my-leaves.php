@@ -193,20 +193,24 @@ $leaves = $stmt->fetchAll(PDO::FETCH_ASSOC);
 <header><h1>My Leave Records</h1></header>
 
 <main class="main-content">
-
 <!-- Stat Cards -->
 <div class="stat-cards">
 <?php foreach ($leave_stats as $stat): ?>
+    <?php
+        // Adjust display values
+        $isAnnual = ($stat['leave_type'] === 'Annual Leave');
+        $total = $stat['default_limit'] + ($isAnnual ? $stat['carry_forward'] : 0);
+        $remaining = $stat['remaining_days']; // already considers carry_forward if your SQL logic does
+    ?>
     <div class="stat-card">
         <h3><?= htmlspecialchars($stat['leave_type']); ?></h3>
-        <div class="numbers" style="color:<?= ($stat['remaining_days'] <= 3) ? '#ef4444' : '#3b82f6'; ?>">
-            <?= round($stat['remaining_days'] + ($stat['leave_type'] === 'Annual Leave' ? $stat['carry_forward'] : 0), 2); ?> /
-            <?= round($stat['default_limit'] + ($stat['leave_type'] === 'Annual Leave' ? $stat['carry_forward'] : 0), 2); ?> Days
+        <div class="numbers" style="color:<?= ($remaining <= 3) ? '#ef4444' : '#3b82f6'; ?>">
+            <?= round($remaining, 2); ?> / <?= round($total, 2); ?> Days
         </div>
         <p>
             Used: <?= round($stat['used_days'], 2); ?> days
-            <?php if ($stat['carry_forward'] > 0 && $stat['leave_type'] === 'Annual Leave'): ?>
-                <br><small style="color:#64748b;">(Includes <?= $stat['carry_forward']; ?> carried forward)</small>
+            <?php if ($isAnnual && $stat['carry_forward'] > 0): ?>
+                <br><small style="color:#64748b;">(Includes <?= round($stat['carry_forward'], 2); ?> carried forward)</small>
             <?php endif; ?>
         </p>
     </div>
