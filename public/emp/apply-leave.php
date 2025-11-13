@@ -279,5 +279,7 @@ const endPicker = flatpickr("#end_date", {
 leaveTypeSelect.addEventListener('change', handleEmergencyLeave);
 leaveTypeSelect.addEventListener('change', updateDayCount);
 </script>
+<script src="../../assets/js/sidebar.js"></script> 
+
 </body>
 </html>
