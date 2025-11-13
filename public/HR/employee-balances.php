@@ -48,6 +48,25 @@ $sql = "
 $stmt = $pdo->prepare($sql);
 $stmt->execute([':emp_id' => $emp_id]);
 $balances = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+// Fetch leave records
+$sql2 = "
+    SELECT 
+        lr.id,
+        lt.name AS leave_type,
+        lr.start_date,
+        lr.end_date,
+        lr.total_days,
+        lr.reason,
+        lr.status
+    FROM leave_requests lr
+    JOIN leave_types lt ON lr.leave_type_id = lt.id
+    WHERE lr.user_id = :emp_id
+    ORDER BY lr.start_date DESC
+";
+$stmt2 = $pdo->prepare($sql2);
+$stmt2->execute([':emp_id' => $emp_id]);
+$requests = $stmt2->fetchAll(PDO::FETCH_ASSOC);
 ?>
 
 <!DOCTYPE html>
@@ -58,7 +77,7 @@ $balances = $stmt->fetchAll(PDO::FETCH_ASSOC);
 <link rel="stylesheet" href="../../assets/css/style.css">
 <style>
   body { font-family: 'Inter', sans-serif; background: #f9fafb; color: #111827; }
-  .card { background: #fff; border-radius: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); padding: 20px; }
+  .card { background: #fff; border-radius: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); padding: 20px; margin-bottom: 30px; }
   .card h2 { margin-bottom: 5px; font-size: 1.5rem; color: #1e293b; }
   .employee-info { margin-bottom: 20px; background: #f8fafc; padding: 15px; border-radius: 10px; }
   .employee-info p { margin: 5px 0; }
@@ -69,28 +88,48 @@ $balances = $stmt->fetchAll(PDO::FETCH_ASSOC);
   .btn-back { background: #64748b; color: #fff; padding: 6px 12px; border-radius: 6px; text-decoration: none; font-weight: 500; transition: 0.2s; }
   .btn-back:hover { background: #475569; }
 
-/* Carry Forward Cell */
-  .carry-cell {position: relative;text-align: center;min-width: 100px;}
-  .carry-value {display: inline-block;text-align: center;font-weight: 500;}
-  input.carry-input { width: 60px;text-align: center;  padding: 4px;border: 1px solid #cbd5e1;border-radius: 6px;}
-  .edit-btn,.save-btn {position: absolute;right: 6px;top: 50%;transform: translateY(-50%);background: none;border: none;cursor: pointer;font-size: 1.1rem;transition: 0.2s;}
-  .edit-btn { color: #2563eb; }.save-btn { color: #16a34a; display: none; }
-  .edit-btn:hover { transform: translateY(-50%) scale(1.15); }
-  .save-btn:hover { transform: translateY(-50%) scale(1.15); }
+  /* Carry Forward Cell */
+  .carry-cell { position: relative; text-align: center; min-width: 100px; }
+  .carry-value { display: inline-block; text-align: center; font-weight: 500; }
+  input.carry-input { width: 60px; text-align: center; padding: 4px; border: 1px solid #cbd5e1; border-radius: 6px; }
+  .edit-btn, .save-btn { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; font-size: 1.1rem; transition: 0.2s; }
+  .edit-btn { color: #2563eb; }
+  .save-btn { color: #16a34a; display: none; }
+  .edit-btn:hover, .save-btn:hover { transform: translateY(-50%) scale(1.15); }
   .status-msg { position: fixed; top: 20px; right: 20px; background: #16a34a; color: #fff; padding: 10px 15px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); opacity: 0; transition: opacity 0.3s ease; }
   .status-msg.show { opacity: 1; }
+
+  /* Leave Record Table */
+  .record-table th { background: #334155; color: #fff; }
+  .status-badge { display: inline-block; padding: 4px 8px; border-radius: 6px; font-size: 0.85rem; text-transform: capitalize; font-weight: 500; }
+  .status-approved { background: #dcfce7; color: #166534; }
+  .status-pending { background: #fef9c3; color: #854d0e; }
+  .status-rejected { background: #fee2e2; color: #991b1b; }
+
+  /* Filter Controls */
+  .filters { display: flex; gap: 10px; align-items: center; }
+  .filters select, .filters button {
+    padding: 6px 10px;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    background: #fff;
+    cursor: pointer;
+  }
+  .filters button { background: #e5e7eb; }
+  .filters button:hover { background: #d1d5db; }
 </style>
 </head>
 <body>
 <div class="layout">
   <?php include 'sidebar.php'; ?>
-<header><h1>Leave Management System</h1></header>
+  <header><h1>Leave Management System</h1></header>
 
   <main class="main-content"> 
     <div style="margin-top:15px; margin-bottom: 15px;">
-        <a href="employees.php" class="btn-back">← Back to Employees</a>
+      <a href="employees.php" class="btn-back">← Back to List</a>
     </div>
 
+    <!-- Leave Balances -->
     <div class="card">
       <h2>Leave Balances</h2>
       <h2><?= htmlspecialchars($employee['name']) ?></h2>
@@ -119,26 +158,86 @@ $balances = $stmt->fetchAll(PDO::FETCH_ASSOC);
               <td><?= htmlspecialchars($b['year']) ?></td>
               <td><?= htmlspecialchars($b['entitled_days']) ?></td>
               <td><?= htmlspecialchars($b['used_days']) ?></td>
-<td>
-  <?php if (strtolower($b['leave_type']) === 'annual leave'): ?>
-    <div class="carry-cell" data-leave-id="<?= $b['leave_type_id'] ?>" data-user-id="<?= $emp_id ?>">
-      <span class="carry-value"><?= htmlspecialchars($b['carry_forward']) ?></span>
-      <input type="number" class="carry-input" min="0" max="5"
-        value="<?= htmlspecialchars($b['carry_forward']) ?>" style="display:none;">
-      <button class="edit-btn" title="Edit">✏️</button>
-      <button class="save-btn" title="Save">✅</button>
-    </div>
-  <?php else: ?>
-    <?= htmlspecialchars($b['carry_forward']) ?>
-  <?php endif; ?>
-</td>
+              <td>
+                <?php if (strtolower($b['leave_type']) === 'annual leave'): ?>
+                  <div class="carry-cell" data-leave-id="<?= $b['leave_type_id'] ?>" data-user-id="<?= $emp_id ?>">
+                    <span class="carry-value"><?= htmlspecialchars($b['carry_forward']) ?></span>
+                    <input type="number" class="carry-input" min="0" max="5" value="<?= htmlspecialchars($b['carry_forward']) ?>" style="display:none;">
+                    <button class="edit-btn" title="Edit">✏️</button>
+                    <button class="save-btn" title="Save">✅</button>
+                  </div>
+                <?php else: ?>
+                  <?= htmlspecialchars($b['carry_forward']) ?>
+                <?php endif; ?>
+              </td>
               <td><strong><?= htmlspecialchars($b['total_available']) ?></strong></td>
             </tr>
           <?php endforeach; ?>
         </tbody>
       </table>
-
     </div>
+
+    <!-- Leave Records -->
+    <div class="card">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <h2>Leave Records</h2>
+        <div class="filters">
+          <label>Type:</label>
+          <select id="filterType">
+            <option value="all">All</option>
+            <?php 
+            $types = array_unique(array_column($requests, 'leave_type'));
+            foreach ($types as $t): ?>
+              <option value="<?= htmlspecialchars($t) ?>"><?= htmlspecialchars($t) ?></option>
+            <?php endforeach; ?>
+          </select>
+
+          <label>Status:</label>
+          <select id="filterStatus">
+            <option value="all">All</option>
+            <option value="approved">Approved</option>
+            <option value="pending">Pending</option>
+            <option value="rejected">Rejected</option>
+          </select>
+
+          <button id="clearFilter">Clear</button>
+        </div>
+      </div>
+
+      <table class="leave-table record-table" id="recordTable">
+        <thead>
+          <tr>
+            <th>Leave Type</th>
+            <th>Start Date</th>
+            <th>End Date</th>
+            <th>Days</th>
+            <th>Reason</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <?php if (count($requests) > 0): ?>
+            <?php foreach ($requests as $r): ?>
+              <tr data-type="<?= htmlspecialchars(strtolower($r['leave_type'])) ?>" data-status="<?= htmlspecialchars(strtolower($r['status'])) ?>">
+                <td><?= htmlspecialchars($r['leave_type']) ?></td>
+                <td><?= htmlspecialchars($r['start_date']) ?></td>
+                <td><?= htmlspecialchars($r['end_date']) ?></td>
+                <td><?= htmlspecialchars($r['total_days']) ?></td>
+                <td><?= htmlspecialchars($r['reason']) ?></td>
+                <td>
+                  <span class="status-badge status-<?= strtolower($r['status']) ?>">
+                    <?= htmlspecialchars($r['status']) ?>
+                  </span>
+                </td>
+              </tr>
+            <?php endforeach; ?>
+          <?php else: ?>
+            <tr><td colspan="6" style="text-align:center; color:#6b7280;">No leave records found.</td></tr>
+          <?php endif; ?>
+        </tbody>
+      </table>
+    </div>
+
   </main>
 </div>
 
@@ -146,7 +245,36 @@ $balances = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 <script src="../../assets/js/sidebar.js"></script>
 <script>
-// Inline editing logic
+// --- Combined Filter Logic ---
+const filterType = document.getElementById('filterType');
+const filterStatus = document.getElementById('filterStatus');
+const clearFilter = document.getElementById('clearFilter');
+const rows = document.querySelectorAll('#recordTable tbody tr');
+
+function applyFilters() {
+  const selectedType = filterType.value.toLowerCase();
+  const selectedStatus = filterStatus.value.toLowerCase();
+
+  rows.forEach(row => {
+    const type = row.dataset.type;
+    const status = row.dataset.status;
+
+    const matchType = selectedType === 'all' || type === selectedType;
+    const matchStatus = selectedStatus === 'all' || status === selectedStatus;
+
+    row.style.display = (matchType && matchStatus) ? '' : 'none';
+  });
+}
+
+filterType.addEventListener('change', applyFilters);
+filterStatus.addEventListener('change', applyFilters);
+clearFilter.addEventListener('click', () => {
+  filterType.value = 'all';
+  filterStatus.value = 'all';
+  rows.forEach(row => row.style.display = '');
+});
+
+// --- Inline editing for Carry Forward ---
 document.querySelectorAll('.carry-cell').forEach(cell => {
   const editBtn = cell.querySelector('.edit-btn');
   const saveBtn = cell.querySelector('.save-btn');
@@ -174,27 +302,19 @@ document.querySelectorAll('.carry-cell').forEach(cell => {
     formData.append('carry_forward', newValue);
 
     try {
-      const response = await fetch('update_carry_ajax.php', {
-        method: 'POST',
-        body: formData
-      });
-
+      const response = await fetch('update_carry_ajax.php', { method: 'POST', body: formData });
       const data = await response.json();
-      if (data.success) {
-        // Update displayed carry_forward
-        span.textContent = data.carry_forward;
 
-        // Update total_available cell in the same row
+      if (data.success) {
+        span.textContent = data.carry_forward;
         const totalCell = cell.parentElement.querySelector('td:last-child strong');
         if (totalCell) totalCell.textContent = data.total_available;
 
-        // Restore display state
         span.style.display = 'inline-block';
         editBtn.style.display = 'inline-block';
         input.style.display = 'none';
         saveBtn.style.display = 'none';
-
-        showStatus(); // ✅ success popup
+        showStatus();
       } else {
         alert('Update failed. Please try again.');
       }
