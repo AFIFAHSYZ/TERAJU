@@ -29,9 +29,9 @@ function calculateEntitledDays($pdo, $user_id, $leave_type_id) {
     $leave_name = strtolower($lt['name']);
     $default_limit = (float)$lt['default_limit'];
 
-    // Fixed leaves
-    if (stripos($leave_name, 'maternity') !== false) return 60;        // always 60
-    if (stripos($leave_name, 'hospitalized') !== false) return $default_limit; // always default_limit
+    // Fixed leave types
+    if (stripos($leave_name, 'maternity') !== false) return 60;        
+    if (stripos($leave_name, 'hospitalized') !== false) return $default_limit;
 
     // Fetch join date
     $stmt = $pdo->prepare("SELECT date_joined FROM users WHERE id = :uid");
@@ -41,9 +41,11 @@ function calculateEntitledDays($pdo, $user_id, $leave_type_id) {
 
     $join = new DateTime($join_date);
     $today = new DateTime();
+
+    // Calculate years of service
     $years_of_service = $join->diff($today)->y;
 
-    // Check tenure policy
+    // Fetch tenure policy
     $stmt = $pdo->prepare("
         SELECT days_per_year
         FROM leave_tenure_policy
@@ -55,17 +57,22 @@ function calculateEntitledDays($pdo, $user_id, $leave_type_id) {
     ");
     $stmt->execute([':type' => $leave_type_id, ':yrs' => $years_of_service]);
     $days_per_year = $stmt->fetchColumn();
+    if ($days_per_year === false) $days_per_year = $default_limit;
 
-    if ($days_per_year === false) {
-        $days_per_year = $default_limit;
-    }
-
-    // Pro-rate for current year if joined mid-year
+    // Pro-rate entitlement for the current year
     $current_year_start = new DateTime(date('Y-01-01'));
-    $months = ($join > $current_year_start) ? $today->diff($join)->m + 1 : (int)date('n');
+    $start = ($join > $current_year_start) ? $join : $current_year_start;
 
-    return round(($days_per_year / 12) * $months, 2);
+    $interval = $start->diff($today);
+
+    // Total months = full months + fraction of month
+    $months = $interval->y * 12 + $interval->m + ($interval->d / 30);
+
+    $entitlement = ($days_per_year / 12) * $months;
+
+    return round($entitlement, 2);
 }
+
 
 // ==============================
 // Fetch leave types and sync balances
