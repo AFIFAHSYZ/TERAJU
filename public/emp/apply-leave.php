@@ -57,8 +57,7 @@ function calculateLeaveDaysPHP($start_date, $end_date, $leave_type_id, $saturday
             : ($weeksSinceYearStart % 2 === 1);
         if ($isWorkWeek) $days += 0.5;
     }
-}
- else {
+}else {
             $days += 1.0;
         }
 
@@ -279,7 +278,6 @@ const endPicker = flatpickr("#end_date", {
 leaveTypeSelect.addEventListener('change', handleEmergencyLeave);
 leaveTypeSelect.addEventListener('change', updateDayCount);
 </script>
-<script src="../../assets/js/sidebar.js"></script> 
 
 </body>
 </html>
