@@ -79,9 +79,9 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         try {
             $total_days = calculateLeaveDaysPHP($start_date, $end_date, $leave_type, $saturday_cycle, $pdo);
 
-            $sql = "INSERT INTO leave_requests 
-                    (user_id, leave_type_id, start_date, end_date, reason, total_days, status, date_requested)
-                    VALUES (:user_id, :leave_type, :start_date, :end_date, :reason, :total_days, 'pending', NOW())";
+$sql = "INSERT INTO leave_requests 
+        (user_id, leave_type_id, start_date, end_date, reason, total_days, status)
+        VALUES (:user_id, :leave_type, :start_date, :end_date, :reason, :total_days, 'pending')";
             $stmt = $pdo->prepare($sql);
             $stmt->execute([
                 ':user_id' => $user_id,
@@ -94,8 +94,8 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
             $success = "✅ Leave request submitted successfully! Total Days: $total_days";
         } catch (PDOException $e) {
-            $error = "❌ Failed to submit leave request. Please try again.";
-        }
+    $error = "❌ Failed to submit leave request: " . $e->getMessage();
+}
     } else {
         $error = "⚠️ Please fill in all required fields.";
     }
@@ -279,5 +279,7 @@ const endPicker = flatpickr("#end_date", {
 leaveTypeSelect.addEventListener('change', handleEmergencyLeave);
 leaveTypeSelect.addEventListener('change', updateDayCount);
 </script>
+<script src="../../assets/js/sidebar.js"></script> 
+
 </body>
 </html>
