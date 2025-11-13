@@ -29,7 +29,7 @@
           <li><a href="holidays.php">Public Holidays</a></li>
           <li><a href="hr-reports.php">Leave Reports</a></li>
         <li><a href="hr-profile.php" >Profile</a></li>
-        <li><a href="../logout.php" class="logout">Logout</a></li>
+<li><a href="../logout.php" id="logout-link">Logout</a></li>
 
     </ul>
   </nav>
@@ -48,3 +48,16 @@
     .sidebar ul li .dropdown-menu li a {padding: 8px 30px; font-size: 0.85rem;}
 </style></html>
 
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const logoutLink = document.getElementById('logout-link');
+  if (logoutLink) {
+    logoutLink.addEventListener('click', function (e) {
+      const confirmLogout = confirm('Are you sure you want to log out?');
+      if (!confirmLogout) {
+        e.preventDefault(); // Cancel logout if user clicks Cancel
+      }
+    });
+  }
+});
+</script>
