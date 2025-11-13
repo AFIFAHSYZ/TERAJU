@@ -16,9 +16,7 @@ $stmt->execute(['id' => $user_id]);
 $user = $stmt->fetch(PDO::FETCH_ASSOC);
 if (!$user) die("User not found");
 
-// ==============================
-// Helper: calculate leave entitlement
-// ==============================
+//  calculate leave entitlement
 function calculateEntitledDays($pdo, $user_id, $leave_type_id) {
     // Fetch leave type info
     $stmt = $pdo->prepare("SELECT name, default_limit FROM leave_types WHERE id = :id");
@@ -286,5 +284,7 @@ $leaves = $stmt->fetchAll(PDO::FETCH_ASSOC);
 <footer>
 <p>&copy; <?= date('Y'); ?> Teraju HR System</p>
 </footer>
+<script src="../../assets/js/sidebar.js"></script>
+
 </body>
 </html>
