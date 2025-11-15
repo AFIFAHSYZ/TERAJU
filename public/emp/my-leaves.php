@@ -16,24 +16,29 @@ $stmt->execute(['id' => $user_id]);
 $user = $stmt->fetch(PDO::FETCH_ASSOC);
 if (!$user) die("User not found");
 
-// ==============================
-// Helper: calculate leave entitlement
-// ==============================
+//  calculate leave entitlement
+
 function calculateEntitledDays($pdo, $user_id, $leave_type_id) {
-    // Fetch leave type info
-    $stmt = $pdo->prepare("SELECT name, default_limit FROM leave_types WHERE id = :id");
+
+    // 1. Fetch leave type info
+    $stmt = $pdo->prepare("
+        SELECT name, default_limit
+        FROM leave_types
+        WHERE id = :id
+    ");
     $stmt->execute(['id' => $leave_type_id]);
     $lt = $stmt->fetch(PDO::FETCH_ASSOC);
+
     if (!$lt) return 0;
 
     $leave_name = strtolower($lt['name']);
     $default_limit = (float)$lt['default_limit'];
 
-    // Fixed leave types
-    if (stripos($leave_name, 'maternity') !== false) return 60;        
-    if (stripos($leave_name, 'hospitalized') !== false) return $default_limit;
+    // 2. Fixed leave types
+    if (strpos($leave_name, 'maternity') !== false) return 60;
+    if (strpos($leave_name, 'hospital') !== false) return $default_limit;
 
-    // Fetch join date
+    // 3. Fetch join date
     $stmt = $pdo->prepare("SELECT date_joined FROM users WHERE id = :uid");
     $stmt->execute(['uid' => $user_id]);
     $join_date = $stmt->fetchColumn();
@@ -41,36 +46,39 @@ function calculateEntitledDays($pdo, $user_id, $leave_type_id) {
 
     $join = new DateTime($join_date);
     $today = new DateTime();
+    $current_year = (int)date('Y');
 
-    // Calculate years of service
-    $years_of_service = $join->diff($today)->y;
+    $years = $join->diff($today)->y;
 
-    // Fetch tenure policy
+    // 4. Fetch policy for Annual/Sick
     $stmt = $pdo->prepare("
         SELECT days_per_year
         FROM leave_tenure_policy
-        WHERE leave_type_id = :type
+        WHERE leave_type_id = :ltid
           AND min_years <= :yrs
           AND (max_years IS NULL OR max_years >= :yrs)
         ORDER BY min_years DESC
         LIMIT 1
     ");
-    $stmt->execute([':type' => $leave_type_id, ':yrs' => $years_of_service]);
+    $stmt->execute(['ltid' => $leave_type_id, 'yrs' => $years]);
+
     $days_per_year = $stmt->fetchColumn();
-    if ($days_per_year === false) $days_per_year = $default_limit;
+    if (!$days_per_year) $days_per_year = $default_limit;
 
-    // Pro-rate entitlement for the current year
-    $current_year_start = new DateTime(date('Y-01-01'));
-    $start = ($join > $current_year_start) ? $join : $current_year_start;
+    // 5. First year (prorate)
+    if ((int)$join->format("Y") == $current_year) {
 
-    $interval = $start->diff($today);
+        $start_month = (int)$join->format("n");
+        $current_month = (int)$today->format("n");
 
-    // Total months = full months + fraction of month
-    $months = $interval->y * 12 + $interval->m + ($interval->d / 30);
+        $months = ($current_month - $start_month + 1);
+        if ($months < 1) $months = 1;
 
-    $entitlement = ($days_per_year / 12) * $months;
+        return round(($days_per_year / 12) * $months, 2);
+    }
 
-    return round($entitlement, 2);
+    // 6. After first year: ALWAYS full entitlement
+    return round($days_per_year, 2);
 }
 
 
@@ -200,24 +208,20 @@ $leaves = $stmt->fetchAll(PDO::FETCH_ASSOC);
 <header><h1>My Leave Records</h1></header>
 
 <main class="main-content">
+
 <!-- Stat Cards -->
 <div class="stat-cards">
 <?php foreach ($leave_stats as $stat): ?>
-    <?php
-        // Adjust display values
-        $isAnnual = ($stat['leave_type'] === 'Annual Leave');
-        $total = $stat['default_limit'] + ($isAnnual ? $stat['carry_forward'] : 0);
-        $remaining = $stat['remaining_days']; // already considers carry_forward if your SQL logic does
-    ?>
     <div class="stat-card">
         <h3><?= htmlspecialchars($stat['leave_type']); ?></h3>
-        <div class="numbers" style="color:<?= ($remaining <= 3) ? '#ef4444' : '#3b82f6'; ?>">
-            <?= round($remaining, 2); ?> / <?= round($total, 2); ?> Days
+        <div class="numbers" style="color:<?= ($stat['remaining_days'] <= 3) ? '#ef4444' : '#3b82f6'; ?>">
+            <?= round($stat['remaining_days'], 2); ?> /
+            <?= round($stat['default_limit'] + ($stat['leave_type'] === 'Annual Leave' ? $stat['carry_forward'] : 0), 2); ?> Days
         </div>
         <p>
             Used: <?= round($stat['used_days'], 2); ?> days
-            <?php if ($isAnnual && $stat['carry_forward'] > 0): ?>
-                <br><small style="color:#64748b;">(Includes <?= round($stat['carry_forward'], 2); ?> carried forward)</small>
+            <?php if ($stat['carry_forward'] > 0 && $stat['leave_type'] === 'Annual Leave'): ?>
+                <br><small style="color:#64748b;">(Includes <?= $stat['carry_forward']; ?> carried forward)</small>
             <?php endif; ?>
         </p>
     </div>
