@@ -17,21 +17,28 @@ $user = $stmt->fetch(PDO::FETCH_ASSOC);
 if (!$user) die("User not found");
 
 //  calculate leave entitlement
+
 function calculateEntitledDays($pdo, $user_id, $leave_type_id) {
-    // Fetch leave type info
-    $stmt = $pdo->prepare("SELECT name, default_limit FROM leave_types WHERE id = :id");
+
+    // 1. Fetch leave type info
+    $stmt = $pdo->prepare("
+        SELECT name, default_limit
+        FROM leave_types
+        WHERE id = :id
+    ");
     $stmt->execute(['id' => $leave_type_id]);
     $lt = $stmt->fetch(PDO::FETCH_ASSOC);
+
     if (!$lt) return 0;
 
     $leave_name = strtolower($lt['name']);
     $default_limit = (float)$lt['default_limit'];
 
-    // Fixed leaves
-    if (stripos($leave_name, 'maternity') !== false) return 60;        // always 60
-    if (stripos($leave_name, 'hospitalized') !== false) return $default_limit; // always default_limit
+    // 2. Fixed leave types
+    if (strpos($leave_name, 'maternity') !== false) return 60;
+    if (strpos($leave_name, 'hospital') !== false) return $default_limit;
 
-    // Fetch join date
+    // 3. Fetch join date
     $stmt = $pdo->prepare("SELECT date_joined FROM users WHERE id = :uid");
     $stmt->execute(['uid' => $user_id]);
     $join_date = $stmt->fetchColumn();
@@ -39,31 +46,41 @@ function calculateEntitledDays($pdo, $user_id, $leave_type_id) {
 
     $join = new DateTime($join_date);
     $today = new DateTime();
-    $years_of_service = $join->diff($today)->y;
+    $current_year = (int)date('Y');
 
-    // Check tenure policy
+    $years = $join->diff($today)->y;
+
+    // 4. Fetch policy for Annual/Sick
     $stmt = $pdo->prepare("
         SELECT days_per_year
         FROM leave_tenure_policy
-        WHERE leave_type_id = :type
+        WHERE leave_type_id = :ltid
           AND min_years <= :yrs
           AND (max_years IS NULL OR max_years >= :yrs)
         ORDER BY min_years DESC
         LIMIT 1
     ");
-    $stmt->execute([':type' => $leave_type_id, ':yrs' => $years_of_service]);
-    $days_per_year = $stmt->fetchColumn();
+    $stmt->execute(['ltid' => $leave_type_id, 'yrs' => $years]);
 
-    if ($days_per_year === false) {
-        $days_per_year = $default_limit;
+    $days_per_year = $stmt->fetchColumn();
+    if (!$days_per_year) $days_per_year = $default_limit;
+
+    // 5. First year (prorate)
+    if ((int)$join->format("Y") == $current_year) {
+
+        $start_month = (int)$join->format("n");
+        $current_month = (int)$today->format("n");
+
+        $months = ($current_month - $start_month + 1);
+        if ($months < 1) $months = 1;
+
+        return round(($days_per_year / 12) * $months, 2);
     }
 
-    // Pro-rate for current year if joined mid-year
-    $current_year_start = new DateTime(date('Y-01-01'));
-    $months = ($join > $current_year_start) ? $today->diff($join)->m + 1 : (int)date('n');
-
-    return round(($days_per_year / 12) * $months, 2);
+    // 6. After first year: ALWAYS full entitlement
+    return round($days_per_year, 2);
 }
+
 
 // ==============================
 // Fetch leave types and sync balances
@@ -198,7 +215,7 @@ $leaves = $stmt->fetchAll(PDO::FETCH_ASSOC);
     <div class="stat-card">
         <h3><?= htmlspecialchars($stat['leave_type']); ?></h3>
         <div class="numbers" style="color:<?= ($stat['remaining_days'] <= 3) ? '#ef4444' : '#3b82f6'; ?>">
-            <?= round($stat['remaining_days'] + ($stat['leave_type'] === 'Annual Leave' ? $stat['carry_forward'] : 0), 2); ?> /
+            <?= round($stat['remaining_days'], 2); ?> /
             <?= round($stat['default_limit'] + ($stat['leave_type'] === 'Annual Leave' ? $stat['carry_forward'] : 0), 2); ?> Days
         </div>
         <p>
