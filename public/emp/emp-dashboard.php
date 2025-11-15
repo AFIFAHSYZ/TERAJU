@@ -20,7 +20,9 @@ if (!isset($_SESSION['user_id']) || $_SESSION['position'] !== 'employee') {
 try {
     $stmt = $pdo->prepare("
         SELECT 
-            (COALESCE(lt.default_limit, 0) + COALESCE(lb.carry_forward, 0) - COALESCE(lb.used_days, 0)) AS annualLeaveBalance
+            (COALESCE(lb.entitled_days, 0) 
+            + COALESCE(lb.carry_forward, 0)
+            - COALESCE(lb.used_days, 0)) AS annualLeaveBalance
         FROM leave_balances lb
         JOIN leave_types lt ON lb.leave_type_id = lt.id
         WHERE lb.user_id = ?
@@ -30,12 +32,11 @@ try {
     $stmt->execute([$user_id]);
     $annualLeaveBalance = $stmt->fetchColumn();
 
-    // If no record exists yet, fall back to default limit
+    // If record not created yet
     if ($annualLeaveBalance === false) {
-        $stmt = $pdo->prepare("SELECT default_limit FROM leave_types WHERE name = 'Annual Leave'");
-        $stmt->execute();
-        $annualLeaveBalance = $stmt->fetchColumn() ?? 0;
+        $annualLeaveBalance = 0;
     }
+
 } catch (PDOException $e) {
     $annualLeaveBalance = 0;
 }
