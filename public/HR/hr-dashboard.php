@@ -85,43 +85,20 @@ $requests = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 // --- Leave Types for filter ---
 $types = $pdo->query("SELECT id, name FROM leave_types ORDER BY name ASC")->fetchAll(PDO::FETCH_ASSOC);
-
-// --- Handle Approve/Reject ---
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
-    $req_id = $_POST['request_id'];
-    $action = $_POST['action'];
-
-    $newStatus = ($action === 'approve') ? 'approved' : 'rejected';
-    $sql = "UPDATE leave_requests 
-            SET status = :status, approved_by = :hr, decision_date = NOW() 
-            WHERE id = :id";
-    $stmt = $pdo->prepare($sql);
-    $stmt->execute([
-        ':status' => $newStatus,
-        ':hr' => $user_id,
-        ':id' => $req_id
-    ]);
-
-    header("Location: hr-dashboard.php?msg=" . urlencode("Leave request $newStatus successfully!"));
-    exit();
-}
 ?>
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>HR Dashboard | LMS</title>
-  <link rel="stylesheet" href="../../assets/css/style.css">
-  <style>
+<meta charset="UTF-8">
+<title>HR Dashboard | LMS</title>
+<link rel="stylesheet" href="../../assets/css/style.css">
+<style>
     .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; margin-bottom: 25px; }
     .stat-card { background: #f8fafc; border-radius: 12px; padding: 15px; text-align: center; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
     .stat-card h3 { margin: 0; font-size: 2em; color: #2563eb; }
     .stat-card p { color: #475569; margin-top: 6px; }
     .filter-grid { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 15px; }
     .filter-grid select, .filter-grid input[type="date"] { padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; }
-    .btn-approve { background: #16a34a; color: #fff; border: none; padding: 6px 10px; border-radius: 6px; cursor: pointer; }
-    .btn-reject { background: #dc2626; color: #fff; border: none; padding: 6px 10px; border-radius: 6px; cursor: pointer; }
     .sidebar ul li {position: relative;}
     .sidebar ul li a {display: flex;justify-content: space-between; align-items: center; padding: 10px 20px;font-size: 0.9rem; color: #fff; text-decoration: none;}
     .sidebar ul li a .arrow {font-size: 0.8rem; transition: transform 0.3s ease;}
@@ -129,77 +106,84 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     .sidebar ul li .dropdown-menu {display: none;flex-direction: column;background: #1c2942;padding-left: 0;}
     .sidebar ul li.active .dropdown-menu {display: flex;}
     .sidebar ul li .dropdown-menu li a {padding: 8px 30px;font-size: 0.85rem;}
-  </style>
+    .btn-link {display: inline-block; text-decoration: none;text-align: center;padding: 6px 12px;border-radius: 6px; color: #fff;background: #16a34a;font-weight: 600;font-size: 0.85rem;cursor: pointer;transition: background 0.3s;}
+    .btn-link:hover { background: #15803d; }
+</style>
 </head>
 <body>
 <div class="layout">
 
-  <?php include 'sidebar.php'; ?>
-    <!-- Header -->
-    <header>
-        <h1>HR Dashboard</h1>
-    </header>
+<?php include 'sidebar.php'; ?>
 
-    <!-- Main -->
-    <main class="main-content">
-        <div class="card">
-            <!-- Stats -->
-            <div class="stats-grid">
-                <div class="stat-card"><h3><?= $stats['total'] ?? 0 ?></h3><p>Total Requests</p></div>
-                <div class="stat-card"><h3><?= $stats['approved'] ?? 0 ?></h3><p>Approved</p></div>
-                <div class="stat-card"><h3><?= $stats['pending'] ?? 0 ?></h3><p>Pending</p></div>
-                <div class="stat-card"><h3><?= $stats['rejected'] ?? 0 ?></h3><p>Rejected</p></div>
-            </div>
-<hr><br>
-<h2>Recent Leave Request</h2>
-            <!-- Leave Table -->
-            <table class="leave-table">
-            
-                <thead>
-                    <tr>
-                        <th>#</th>
-                        <th>Employee</th>
-                        <th>Position</th>
-                        <th>Leave Type</th>
-                        <th>Start</th>
-                        <th>End</th>
-                        <th>Status</th>
-                        <th>Action</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php if (empty($requests)): ?>
-                        <tr><td colspan="8" style="text-align:center;">No leave records found</td></tr>
-                    <?php else: ?>
-                        <?php foreach ($requests as $i => $r): ?>
-                            <tr>
-                                <td><?= $i + 1 ?></td>
-                                <td><?= htmlspecialchars($r['employee_name']) ?></td>
-                                <td><?= htmlspecialchars(ucfirst($r['position'])) ?></td>
-                                <td><?= htmlspecialchars($r['leave_type'] ?? '-') ?></td>
-                                <td><?= htmlspecialchars($r['start_date']) ?></td>
-                                <td><?= htmlspecialchars($r['end_date']) ?></td>
-                                <td class="status <?= strtolower($r['status']) ?>">
-                                    <?= ucfirst($r['status']) ?>
-                                </td>
-                                <td>
-                                    <?php if ($r['status'] === 'pending'): ?>
-                                        <form method="POST" style="display:inline;">
-                                            <input type="hidden" name="request_id" value="<?= $r['id'] ?>">
-                                            <button type="submit" name="action" value="approve" class="btn-approve">Approve</button>
-                                            <button type="submit" name="action" value="reject" class="btn-reject">Reject</button>
-                                        </form>
-                                    <?php else: ?>
-                                        <em>-</em>
-                                    <?php endif; ?>
-                                </td>
-                            </tr>
-                        <?php endforeach; ?>
-                    <?php endif; ?>
-                </tbody>
-            </table>
+<header>
+    <h1>HR Dashboard</h1>
+</header>
+
+<main class="main-content">
+    <div class="card">
+        <div class="stats-grid">
+            <div class="stat-card"><h3><?= $stats['total'] ?? 0 ?></h3><p>Total Requests</p></div>
+            <div class="stat-card"><h3><?= $stats['approved'] ?? 0 ?></h3><p>Approved</p></div>
+            <div class="stat-card"><h3><?= $stats['pending'] ?? 0 ?></h3><p>Pending</p></div>
+            <div class="stat-card"><h3><?= $stats['rejected'] ?? 0 ?></h3><p>Rejected</p></div>
         </div>
-    </main>
+
+        <hr><br>
+        <h2>Recent Leave Requests</h2>
+
+        <table class="leave-table">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Employee</th>
+                    <th>Position</th>
+                    <th>Leave Type</th>
+                    <th>Start</th>
+                    <th>End</th>
+                    <th>Status</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php if (empty($requests)): ?>
+                    <tr><td colspan="8" style="text-align:center;">No leave records found</td></tr>
+                <?php else: ?>
+                    <?php foreach ($requests as $i => $r): ?>
+                        <tr>
+                            <td><?= $i + 1 ?></td>
+                            <td><?= htmlspecialchars($r['employee_name']) ?></td>
+                            <td><?= htmlspecialchars(ucfirst($r['position'])) ?></td>
+                            <td><?= htmlspecialchars($r['leave_type'] ?? '-') ?></td>
+                            <td><?= htmlspecialchars($r['start_date']) ?></td>
+                            <td><?= htmlspecialchars($r['end_date']) ?></td>
+                            <td class="status <?= strtolower($r['status']) ?>">
+                                <?= ucfirst($r['status']) ?>
+                            </td>
+                            <td>
+                                <?php
+                                $leaveType = strtolower($r['leave_type'] ?? '');
+                                $status = strtolower($r['status'] ?? '');
+
+                                if ($leaveType !== 'annual leave') {
+                                    if ($status !== 'verified') {
+                                        ?>
+                                        <a href="verify-leave.php?id=<?= $r['id'] ?>" class="btn-link">Review</a>
+                                        <?php
+                                    } else {
+                                        echo '<em>✔ Verified</em>';
+                                    }
+                                } else {
+                                    echo '<em>-</em>';
+                                }
+                                ?>
+                            </td>
+                        </tr>
+                    <?php endforeach; ?>
+                <?php endif; ?>
+            </tbody>
+        </table>
+    </div>
+</main>
 </div>
 <script src="../../assets/js/sidebar.js"></script> 
 </body>
