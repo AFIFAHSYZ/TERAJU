@@ -310,6 +310,8 @@ footer {
 .leave-table td.status.approved { color: #2ecc71; }
 .leave-table td.status.pending { color: #f39c12; }
 .leave-table td.status.rejected { color: #e74c3c; }
+.status.verified {color: #2ecc71;font-weight: bold;}
+
 
 /* =====================
    Responsive
