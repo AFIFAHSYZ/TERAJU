@@ -19,7 +19,7 @@ if ($user['position'] !== 'hr') {
 // Filters
 $status = $_GET['status'] ?? '';
 $type = $_GET['type'] ?? '';
-$search = trim($_GET['search'] ?? ''); // ✅ New search filter
+$search = trim($_GET['search'] ?? ''); 
 
 $sql = "SELECT lr.id, u.name AS employee, u.email, lt.name AS leave_type, lr.start_date, lr.end_date, lr.status, lr.applied_at
         FROM leave_requests lr
@@ -62,6 +62,12 @@ $types = $pdo->query("SELECT id, name FROM leave_types ORDER BY name ASC")->fetc
     .filter-form input, .filter-form select {padding: 8px; border: 1px solid #ccc; border-radius: 6px;}
     .filter-form button {background: #007bff;color: white;border: none;padding: 8px 14px;border-radius: 6px;cursor: pointer;transition: background 0.2s;}
     .filter-form button:hover {background: #0056b3;}
+    .leave-table {width: 100%;border-collapse: collapse;font-size: 15px;}
+    .leave-table th,.leave-table td {padding: 6px 8px;text-align: left;}
+    .leave-table th {background: #f4f4f4;}
+    .leave-table tr:nth-child(even) {background: #fafafa;}
+    .leave-table .btn-review {padding: 4px 8px !important;font-size: 13px;}
+    .status {font-weight: 600;}
   </style>
 </head>
 <body>
@@ -96,35 +102,48 @@ $types = $pdo->query("SELECT id, name FROM leave_types ORDER BY name ASC")->fetc
 
         <button type="submit" class="btn-submit">Filter</button>
       </form>
+<table class="leave-table" style="margin-top:15px;">
+  <thead>
+    <tr>
+      <th>No.</th>
+      <th>Employee</th>
+      <th>Email</th> 
+      <th>Leave Type</th>
+      <th>Start</th>
+      <th>End</th>
+      <th>Status</th>
+      <th>Action</th>
+    </tr>
+  </thead>
 
-      <table class="leave-table" style="margin-top:15px;">
-        <thead>
-          <tr>
-            <th>No.</th>
-            <th>Employee</th>
-            <th>Email</th> 
-            <th>Leave Type</th>
-            <th>Start</th>
-            <th>End</th>
-            <th>Status</th>
-            <th>Applied</th>
-          </tr>
-        </thead>
-        <tbody>
-          <?php $i = 1; foreach ($requests as $r): ?>
-            <tr>
-              <td><?= $i++ ?></td> <!-- Row number -->
-              <td><?= htmlspecialchars($r['employee']) ?></td>
-              <td><?= htmlspecialchars($r['email']) ?></td>
-              <td><?= htmlspecialchars($r['leave_type']) ?></td>
-              <td><?= $r['start_date'] ?></td>
-              <td><?= $r['end_date'] ?></td>
-              <td class="status <?= strtolower($r['status']); ?>"><?= ucfirst($r['status']); ?></td>
-              <td><?= date('Y-m-d', strtotime($r['applied_at'])) ?></td>
-            </tr>
-          <?php endforeach; ?>
-        </tbody>
-      </table>
+  <tbody>
+    <?php $i = 1; foreach ($requests as $r): ?>
+      <tr>
+        <td><?= $i++ ?></td>
+        <td><?= htmlspecialchars($r['employee']) ?></td>
+        <td><?= htmlspecialchars($r['email']) ?></td>
+        <td><?= htmlspecialchars($r['leave_type']) ?></td>
+        <td><?= $r['start_date'] ?></td>
+        <td><?= $r['end_date'] ?></td>
+
+        <!-- Status with new color handling -->
+        <td class="status <?= strtolower($r['status']); ?>">
+          <?= ucfirst($r['status']); ?>
+        </td>
+
+        <!-- Review button -->
+        <td>
+          <a href="verify-leave.php?id=<?= $r['id'] ?>" 
+             class="btn-review" 
+             style="background:#007bff;color:white;padding:6px 10px;border-radius:5px;text-decoration:none;">
+             Review
+          </a>
+        </td>
+      </tr>
+    <?php endforeach; ?>
+  </tbody>
+</table>
+
     </div>
   </main>
 </div>
