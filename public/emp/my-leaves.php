@@ -294,8 +294,6 @@ $leaves = $stmt->fetchAll(PDO::FETCH_ASSOC);
 <?php endif; ?>
 
 </form>
-
-
 </main>
 </div>
 <footer>
