@@ -2,7 +2,7 @@
 session_start();
 require_once '../../config/conn.php';
 
-if(!isset($_SESSION['user_id'])) {
+if (!isset($_SESSION['user_id'])) {
     header("Location: ../../login.php");
     exit();
 }
@@ -14,19 +14,44 @@ $stmt = $pdo->prepare("SELECT name, position FROM users WHERE id = :id");
 $stmt->execute([':id'=>$user_id]);
 $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
-if($user['position'] !== 'hr'){
+if ($user['position'] !== 'hr') {
     header("Location: ../../unauthorized.php");
     exit();
 }
 
 $id = $_GET['id'] ?? '';
-
-if(!$id){
+if (!$id) {
     header("Location: hr-dashboard.php");
     exit();
 }
 
-// Fetch leave request info
+// Handle verification
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
+    $stmt = $pdo->prepare("SELECT lr.*, lt.name AS leave_type FROM leave_requests lr LEFT JOIN leave_types lt ON lr.leave_type_id = lt.id WHERE lr.id = :id");
+    $stmt->execute([':id'=>$id]);
+    $request = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if (!$request) die("Leave request not found.");
+
+    $leaveType = strtolower($request['leave_type'] ?? '');
+    $status = strtolower($request['status'] ?? '');
+
+    if ($leaveType === 'annual leave' || $status === 'verified') {
+        // Do nothing, just redirect
+        header("Location: verify-leave.php?id=$id");
+        exit();
+    }
+
+    // Update leave to verified
+    $stmt = $pdo->prepare("UPDATE leave_requests SET status = 'verified', verified_by = :hr, verified_at = NOW() WHERE id = :id");
+    $stmt->execute([':hr' => $user_id, ':id' => $id]);
+
+    // After update, redirect to refresh the page
+    header("Location: verify-leave.php?id=$id");
+    exit();
+}
+
+// Fetch leave request info (always latest from DB)
 $stmt = $pdo->prepare("
     SELECT lr.*, u.name AS employee_name, lt.name AS leave_type,
            h.name AS verified_by_name
@@ -39,42 +64,17 @@ $stmt = $pdo->prepare("
 $stmt->execute([':id'=>$id]);
 $request = $stmt->fetch(PDO::FETCH_ASSOC);
 
-if(!$request) die("Leave request not found.");
+if (!$request) die("Leave request not found.");
 
 // Calculate effective days
 $daysTaken = $holidays = $effectiveDays = 0;
-
-if($request['start_date'] && $request['end_date']){
+if ($request['start_date'] && $request['end_date']) {
     $daysTaken = (strtotime($request['end_date']) - strtotime($request['start_date'])) / 86400 + 1;
     $phStmt = $pdo->prepare("SELECT COUNT(*) FROM public_holidays WHERE holiday_date BETWEEN :start AND :end");
     $phStmt->execute([':start'=>$request['start_date'], ':end'=>$request['end_date']]);
     $holidays = $phStmt->fetchColumn();
     $effectiveDays = max(0, $daysTaken - $holidays);
 }
-
-// Handle verification
-if($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])){
-    $leaveType = strtolower($request['leave_type']);
-    $status = strtolower($request['status']);
-
-    if($leaveType === 'annual leave'){
-        header("Location: verify-leave.php?id=$id&msg=".urlencode("Cannot verify annual leave."));
-        exit();
-    }
-
-    if($status === 'verified'){
-        header("Location: verify-leave.php?id=$id&msg=".urlencode("Leave already verified."));
-        exit();
-    }
-
-    // Update leave to verified
-    $stmt = $pdo->prepare("UPDATE leave_requests SET status = 'verified', verified_by = :hr, verified_at = NOW() WHERE id = :id");
-    $stmt->execute([':hr'=>$user_id, ':id'=>$id]);
-
-    header("Location: verify-leave.php?id=$id&msg=".urlencode("Leave verified successfully!"));
-    exit();
-}
-
 ?>
 
 <!DOCTYPE html>
@@ -105,7 +105,7 @@ function confirmVerify() {
 <?php include 'sidebar.php'; ?>
 <main class="main-content">
     <header><h1>Leave Management System</h1></header>
-    <a href="hr-dashboard.php" class="back-link">← Back to Dashboard</a>
+    <a href="all-requests.php" class="back-link">← Back to List</a>
 
     <div class="card">
         <h2>Verify Leave Request</h2><hr><br>
@@ -139,7 +139,7 @@ function confirmVerify() {
 
         <?php if($leaveType !== 'annual leave' && $status !== 'verified'): ?>
             <form method="POST" action="verify-leave.php?id=<?= $request['id'] ?>">
-                <input type="hidden" name="leave_id" value="<?= $request['id'] ?>">
+                <input type="hidden" name="action" value="verify">
                 <button type="submit" class="btn-verify" onclick="return confirmVerify()">Verify</button>
             </form>
         <?php else: ?>
@@ -154,5 +154,7 @@ function confirmVerify() {
     </div>
 </main>
 </div>
+<script src="../../assets/js/sidebar.js"></script>
+
 </body>
 </html>
