@@ -2,7 +2,7 @@
 session_start();
 require_once '../../config/conn.php';
 
-// Ensure user logged in
+// Ensure user is logged in
 if (!isset($_SESSION['user_id'])) {
     header("Location: ../../login.php");
     exit();
@@ -16,14 +16,15 @@ if (!$id) {
     exit();
 }
 
-// 🧩 Get Manager Info
+// Get manager info
 $stmt = $pdo->prepare("SELECT name, position FROM users WHERE id = :id");
 $stmt->execute([':id' => $user_id]);
 $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
-// 🧩 Get Leave Request Info
+// Get leave request info
 $stmt = $pdo->prepare("
-    SELECT lr.*, u.name AS employee_name, lt.name AS leave_type, m.name AS approved_by_name
+    SELECT lr.*, u.name AS employee_name, lt.name AS leave_type,
+           m.name AS approved_by_name
     FROM leave_requests lr
     JOIN users u ON lr.user_id = u.id
     LEFT JOIN leave_types lt ON lr.leave_type_id = lt.id
@@ -35,47 +36,34 @@ $request = $stmt->fetch(PDO::FETCH_ASSOC);
 
 if (!$request) die("Leave request not found.");
 
-// Variables for display
-$daysTaken = 0;
-$holidays = 0;
-$effectiveDays = 0;
+// Calculate days taken, holidays, effective days, and remaining balance
+$daysTaken = $holidays = $effectiveDays = 0;
 $remainingBalance = null;
 
-// Calculate days + balance for display
 if ($request['start_date'] && $request['end_date']) {
     $daysTaken = (strtotime($request['end_date']) - strtotime($request['start_date'])) / 86400 + 1;
 
-    // Public holidays between range
-    $phStmt = $pdo->prepare("
-        SELECT COUNT(*) FROM public_holidays 
-        WHERE holiday_date BETWEEN :start AND :end
-    ");
+    // Count public holidays
+    $phStmt = $pdo->prepare("SELECT COUNT(*) FROM public_holidays WHERE holiday_date BETWEEN :start AND :end");
     $phStmt->execute([':start' => $request['start_date'], ':end' => $request['end_date']]);
     $holidays = $phStmt->fetchColumn();
 
     $effectiveDays = max(0, $daysTaken - $holidays);
 
-    // Fetch balance
+    // Fetch leave balance
     $b = $pdo->prepare("
         SELECT carry_forward, used_days, entitled_days,
                (carry_forward + entitled_days - used_days) AS remaining
         FROM leave_balances
-        WHERE user_id = :uid 
-          AND leave_type_id = :ltid
-          AND year = EXTRACT(YEAR FROM CURRENT_DATE)
+        WHERE user_id = :uid AND leave_type_id = :ltid AND year = EXTRACT(YEAR FROM CURRENT_DATE)
     ");
-    $b->execute([
-        ':uid' => $request['user_id'],
-        ':ltid' => $request['leave_type_id']
-    ]);
+    $b->execute([':uid' => $request['user_id'], ':ltid' => $request['leave_type_id']]);
     $balance = $b->fetch(PDO::FETCH_ASSOC);
     $remainingBalance = $balance ? $balance['remaining'] : null;
 }
 
-// 🟢 Handle approval/rejection
+// Handle approve/reject
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
-
-    // Prevent editing once approved/rejected
     if ($request['status'] !== 'pending') {
         header("Location: review-request.php?id=$id&msg=" . urlencode("Action not allowed. Leave request already processed."));
         exit();
@@ -95,7 +83,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         ':id' => $req_id
     ]);
 
-    // ✅ If approved, deduct from balance
+    // Deduct balance if approved
     if ($newStatus === 'approved') {
         $q = $pdo->prepare("SELECT user_id, leave_type_id, start_date, end_date FROM leave_requests WHERE id = :id");
         $q->execute([':id' => $req_id]);
@@ -103,12 +91,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 
         if ($req) {
             $daysTaken = (strtotime($req['end_date']) - strtotime($req['start_date'])) / 86400 + 1;
+
             $phStmt = $pdo->prepare("SELECT COUNT(*) FROM public_holidays WHERE holiday_date BETWEEN :start AND :end");
             $phStmt->execute([':start' => $req['start_date'], ':end' => $req['end_date']]);
             $holidays = $phStmt->fetchColumn();
+
             $effectiveDays = max(0, $daysTaken - $holidays);
 
-            // Update balance
             $b = $pdo->prepare("
                 SELECT id, used_days FROM leave_balances
                 WHERE user_id = :uid AND leave_type_id = :ltid AND year = EXTRACT(YEAR FROM CURRENT_DATE)
@@ -135,16 +124,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 <title>Review Leave Request</title>
 <link rel="stylesheet" href="../../assets/css/style.css">
 <style>
-    .card {background: white; border-radius: 10px; padding: 1.5rem 2rem; box-shadow: 0 2px 10px rgba(0,0,0,0.08);}
-    .info-grid {display: grid; grid-template-columns: 180px auto; row-gap: 10px; column-gap: 10px; font-size: 0.95rem;}
-    .label {font-weight: 600; color: #475569;}
-    .btn-approve, .btn-reject {border: none; padding: 8px 14px; border-radius: 8px; color: #fff; cursor: pointer; font-size: 0.9rem; margin-right: 10px;}
-    .btn-approve {background: #10b981;} .btn-reject {background: #ef4444;}
-    .btn-approve:hover {background: #059669;} .btn-reject:hover {background: #dc2626;}
-    .back-link {display: inline-block; margin-bottom: 15px; text-decoration: none; color: #2563eb; font-weight: 600; background: #e0f2fe; padding: 6px 12px; border-radius: 6px;}
-    .back-link:hover {background: #bfdbfe; color: #1e40af;}
-    .status-badge {padding: 4px 10px; border-radius: 6px; font-weight: 600;}
-    .note {margin-top: 10px; color: #475569; font-size: 0.9rem;}
+.card {background: white; border-radius: 10px; padding: 1.5rem 2rem; box-shadow: 0 2px 10px rgba(0,0,0,0.08);}
+.info-grid {display: grid; grid-template-columns: 180px auto; row-gap: 10px; column-gap: 10px; font-size: 0.95rem;}
+.label {font-weight: 600; color: #475569;}
+.btn-approve, .btn-reject {border: none; padding: 8px 14px; border-radius: 8px; color: #fff; cursor: pointer; font-size: 0.9rem; margin-right: 10px;}
+.btn-approve {background: #10b981;} .btn-reject {background: #ef4444;}
+.btn-approve:hover {background: #059669;} .btn-reject:hover {background: #dc2626;}
+.back-link {display: inline-block; margin-bottom: 15px; text-decoration: none; color: #2563eb; font-weight: 600; background: #e0f2fe; padding: 6px 12px; border-radius: 6px;}
+.back-link:hover {background: #bfdbfe; color: #1e40af;}
+.status-badge {padding: 4px 10px; border-radius: 6px; font-weight: 600;}
+.note {margin-top: 10px; color: #475569; font-size: 0.9rem;}
 </style>
 <script>
 function confirmAction(type) {
@@ -154,12 +143,9 @@ function confirmAction(type) {
 </head>
 <body>
 <div class="layout">
-    <!-- Sidebar -->
-  <?php include 'm-sidebar.php'; ?>
-    <!-- Main -->
+    <?php include 'm-sidebar.php'; ?>
     <main class="main-content">
         <header><h1>Leave Management System</h1></header>
-
         <a href="team-leaves.php" class="back-link">← Back to List</a>
 
         <div class="card">
@@ -192,15 +178,29 @@ function confirmAction(type) {
             </div>
             <br>
 
-            <?php if (strtolower($request['status']) === 'pending'): ?>
-            <form method="POST" action="review-request.php?id=<?= $request['id'] ?>">
-                <input type="hidden" name="leave_id" value="<?= $request['id'] ?>">
-                <button type="submit" name="action" value="approved" class="btn-approve" onclick="return confirmAction('approve')">Approve</button>
-                <button type="submit" name="action" value="rejected" class="btn-reject" onclick="return confirmAction('reject')">Reject</button>
-            </form>
-            <?php else: ?>
-                <p class="note">✅ This leave request has already been <strong><?= htmlspecialchars($request['status']) ?></strong> and cannot be modified.</p>
+            <?php 
+            $leaveType = strtolower($request['leave_type']);
+            $status = strtolower($request['status']);
+            ?>
+
+
+            <!-- Annual Leave + Pending → Approve/Reject -->
+            <?php if ($leaveType === 'annual leave' && $status === 'pending'): ?>
+                <form method="POST" action="review-request.php?id=<?= $request['id'] ?>">
+                    <input type="hidden" name="leave_id" value="<?= $request['id'] ?>">
+                    <button type="submit" name="action" value="approved" class="btn-approve" onclick="return confirmAction('approve')">Approve</button>
+                    <button type="submit" name="action" value="rejected" class="btn-reject" onclick="return confirmAction('reject')">Reject</button>
+                </form>
+
+            <!-- Annual Leave + Approved/Rejected → message -->
+            <?php elseif ($leaveType === 'annual leave' && $status !== 'pending'): ?>
+                <p class="note">
+                    ✔ This leave request has already been 
+                    <strong><?= ucfirst(htmlspecialchars($request['status'])) ?></strong> 
+                    and cannot be modified.
+                </p>
             <?php endif; ?>
+            
         </div>
     </main>
 </div>
