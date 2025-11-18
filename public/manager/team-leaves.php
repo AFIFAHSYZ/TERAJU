@@ -62,87 +62,8 @@ $stmt = $pdo->prepare($sql);
 $stmt->execute($params);
 $requests = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-// 🔔 Check for pending requests
-$pendingCountStmt = $pdo->query("SELECT COUNT(*) FROM leave_requests WHERE status = 'pending'");
-$pendingCount = $pendingCountStmt->fetchColumn();
-
 // 🗂 Fetch leave types for filters
 $types = $pdo->query("SELECT id, name FROM leave_types ORDER BY name ASC")->fetchAll(PDO::FETCH_ASSOC);
-
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
-$req_id = $_POST['leave_id'];
-    $action = $_POST['action'];
-
-$newStatus = ($action === 'approved') ? 'approved' : 'rejected';
-    $sql = "UPDATE leave_requests 
-            SET status = :status, approved_by = :manager, decision_date = NOW() 
-            WHERE id = :id";
-    $stmt = $pdo->prepare($sql);
-    $stmt->execute([
-        ':status' => $newStatus,
-        ':manager' => $user_id,
-        ':id' => $req_id
-    ]);
-
-    // ✅ If approved, deduct from leave balance
-    if ($newStatus === 'approved') {
-        $q = $pdo->prepare("
-            SELECT user_id, leave_type_id, start_date, end_date
-            FROM leave_requests WHERE id = :id
-        ");
-        $q->execute([':id' => $req_id]);
-        $req = $q->fetch(PDO::FETCH_ASSOC);
-
-        if ($req) {
-            $daysTaken = (strtotime($req['end_date']) - strtotime($req['start_date'])) / (60*60*24) + 1;
-
-            // Exclude public holidays automatically (optional)
-            $phStmt = $pdo->prepare("
-                SELECT COUNT(*) FROM public_holidays 
-                WHERE holiday_date BETWEEN :start AND :end
-            ");
-            $phStmt->execute([
-                ':start' => $req['start_date'],
-                ':end' => $req['end_date']
-            ]);
-            $holidays = $phStmt->fetchColumn();
-
-            $effectiveDays = max(0, $daysTaken - $holidays);
-
-            // Update leave balance
-            $b = $pdo->prepare("
-                SELECT id,  carry_forward, used_days
-                FROM leave_balances
-                WHERE user_id = :uid 
-                  AND leave_type_id = :ltid
-                  AND year = EXTRACT(YEAR FROM CURRENT_DATE)
-            ");
-            $b->execute([
-                ':uid' => $req['user_id'],
-                ':ltid' => $req['leave_type_id']
-            ]);
-            $balance = $b->fetch(PDO::FETCH_ASSOC);
-
-            if ($balance) {
-                $used = $balance['used_days'] + $effectiveDays;
-
-                $u = $pdo->prepare("
-                    UPDATE leave_balances
-                    SET used_days = :used
-                    WHERE id = :id
-                ");
-                $u->execute([
-                    ':used' => $used,
-                    ':id' => $balance['id']
-                ]);
-            }
-        }
-    }
-
-    header("Location: team-leaves.php?msg=" . urlencode("Leave request $newStatus successfully!"));
-    exit();
-}
-
 ?>
 
 <!DOCTYPE html>
@@ -151,33 +72,29 @@ $newStatus = ($action === 'approved') ? 'approved' : 'rejected';
     <meta charset="UTF-8">
     <title>Team Leaves | Manager Dashboard</title>
     <link rel="stylesheet" href="../../assets/css/style.css">
-    <style>    
-    .filter-form {display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px;align-items: flex-end; background: #fff; padding: 15px;border-radius: 10px; box-shadow: 0 3px 10px rgba(0,0,0,0.05); }
-    .filter-form label { display: block; font-size: 0.9rem; color: #334155; margin-bottom: 5px; }
-    .filter-form input, .filter-form select { padding: 8px 10px; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 0.9rem; width: 150px; }
-    .filter-form button {     padding: 9px 16px; background: #3b82f6; border: none; border-radius: 8px;  color: #fff; font-weight: 600; cursor: pointer; }
-    .filter-form button:hover { background: #2563eb; }
-    .table-actions form { display:inline; margin:0 3px; }
-    .btn-approve, .btn-reject { border:none; padding:6px 10px; border-radius:6px; color:#fff; cursor:pointer; font-size:0.85rem; }
-    .btn-approve { background:#10b981; }
-    .btn-reject { background:#ef4444; }
-    .btn-approve:hover { background:#059669; }
-    .btn-reject:hover { background:#dc2626; }
-    .btn-review {background: #f59e0b;color: #fff;border: none;padding: 6px 10px;border-radius: 6px;text-decoration: none;font-size: 0.85rem; cursor: pointer;}
-    .btn-review:hover {background: #d97706;}
-
-</style>
+    <style>
+        .filter-form {display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px;align-items: flex-end; background: #fff; padding: 15px;border-radius: 10px; box-shadow: 0 3px 10px rgba(0,0,0,0.05); }
+        .filter-form label { display: block; font-size: 0.9rem; color: #334155; margin-bottom: 5px; }
+        .filter-form input, .filter-form select { padding: 8px 10px; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 0.9rem; width: 150px; }
+        .filter-form button { padding: 9px 16px; background: #3b82f6; border: none; border-radius: 8px;  color: #fff; font-weight: 600; cursor: pointer; }
+        .filter-form button:hover { background: #2563eb; }
+        .btn-review {background: #dc8d04ff;color: #fff;border: none;padding: 6px 10px;border-radius: 6px;text-decoration: none;font-size: 0.85rem; cursor: pointer;}
+        .btn-review:hover {background: #d97706;}
+        .status-approved {color: #1ca74fff; font-weight: 600;}
+        .status-rejected {color: #d72828ff; font-weight: 600;}
+        .status-pending {color: #e7970dff; font-weight: 600;}
+    </style>
 </head>
 <body>
 <div class="layout">
 
     <!-- Sidebar -->
-  <?php include 'm-sidebar.php'; ?>
+    <?php include 'm-sidebar.php'; ?>
 
-
-        <header>
+    <header>
         <h1>Leave Management System</h1>
     </header>
+
     <!-- Main -->
     <main class="main-content">
         <div class="card">
@@ -185,28 +102,26 @@ $newStatus = ($action === 'approved') ? 'approved' : 'rejected';
 
             <!-- Filters -->
             <form method="GET" class="filter-form">
-                <div class="filter-grid">
-                    <select name="status">
-                        <option value="">All Status</option>
-                        <option value="pending" <?= $statusFilter==='pending'?'selected':'' ?>>Pending</option>
-                        <option value="approved" <?= $statusFilter==='approved'?'selected':'' ?>>Approved</option>
-                        <option value="rejected" <?= $statusFilter==='rejected'?'selected':'' ?>>Rejected</option>
-                    </select>
+                <select name="status">
+                    <option value="">All Status</option>
+                    <option value="pending" <?= $statusFilter==='pending'?'selected':'' ?>>Pending</option>
+                    <option value="approved" <?= $statusFilter==='approved'?'selected':'' ?>>Approved</option>
+                    <option value="rejected" <?= $statusFilter==='rejected'?'selected':'' ?>>Rejected</option>
+                </select>
 
-                    <select name="type">
-                        <option value="">All Leave Types</option>
-                        <?php foreach ($types as $t): ?>
-                            <option value="<?= $t['id'] ?>" <?= $typeFilter==$t['id']?'selected':'' ?>>
-                                <?= htmlspecialchars($t['name']) ?>
-                            </option>
-                        <?php endforeach; ?>
-                    </select>
+                <select name="type">
+                    <option value="">All Leave Types</option>
+                    <?php foreach ($types as $t): ?>
+                        <option value="<?= $t['id'] ?>" <?= $typeFilter==$t['id']?'selected':'' ?>>
+                            <?= htmlspecialchars($t['name']) ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
 
-                    <input type="date" name="start_date" value="<?= htmlspecialchars($startDate) ?>">
-                    <input type="date" name="end_date" value="<?= htmlspecialchars($endDate) ?>">
+                <input type="date" name="start_date" value="<?= htmlspecialchars($startDate) ?>">
+                <input type="date" name="end_date" value="<?= htmlspecialchars($endDate) ?>">
 
-                    <button type="submit" >Filter</button>
-                </div>
+                <button type="submit">Filter</button>
             </form>
 
             <!-- Table -->
@@ -227,32 +142,27 @@ $newStatus = ($action === 'approved') ? 'approved' : 'rejected';
                         <tr><td colspan="7" style="text-align:center;">No records found</td></tr>
                     <?php else: ?>
                         <?php foreach ($requests as $i => $r): ?>
-                        <tr>
-                            <td><?= $i + 1 ?></td>
-                            <td><?= htmlspecialchars($r['employee_name']) ?></td>
-                            <td><?= htmlspecialchars($r['leave_type'] ?? '-') ?></td>
-                            <td><?= htmlspecialchars($r['start_date']) ?></td>
-                            <td><?= htmlspecialchars($r['end_date']) ?></td>
-                            <td class="status <?= strtolower($r['status']) ?>">
-                                <?= ucfirst($r['status']) ?>
-                            </td>
-                            <td>
-                                <?php if ($r['status'] === 'pending'): ?>
-                                    <form method="POST" style="display:inline;">
-                                        <input type="hidden" name="request_id" value="<?= $r['id'] ?>">
-                                  </form>
-                                <?php else: ?>
-                                        <a href="review-request.php?id=<?= $r['id'] ?>" class="btn-review">Review</a>
-                                <?php endif; ?>
-                            </td>
-                        </tr>
+                            <tr>
+                                <td><?= $i + 1 ?></td>
+                                <td><?= htmlspecialchars($r['employee_name']) ?></td>
+                                <td><?= htmlspecialchars($r['leave_type'] ?? '-') ?></td>
+                                <td><?= htmlspecialchars($r['start_date']) ?></td>
+                                <td><?= htmlspecialchars($r['end_date']) ?></td>
+                                <td class="status-<?= strtolower($r['status']) ?>">
+                                    <?= ucfirst($r['status']) ?>
+                                </td>
+                                <td>
+                                    <a href="review-request.php?id=<?= $r['id'] ?>" class="btn-review">Review</a>
+                                </td>
+                            </tr>
                         <?php endforeach; ?>
                     <?php endif; ?>
                 </tbody>
             </table>
+
         </div>
     </main>
 </div>
-<script src="../../assets/js/sidebar.js"></script> 
+<script src="../../assets/js/sidebar.js"></script>
 </body>
 </html>
