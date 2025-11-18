@@ -78,19 +78,27 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     if ($leave_type && $start_date && $end_date) {
         try {
             $total_days = calculateLeaveDaysPHP($start_date, $end_date, $leave_type, $saturday_cycle, $pdo);
+    // Determine approval workflow
+    $leaveNameStmt = $pdo->prepare("SELECT name FROM leave_types WHERE id = :id");
+    $leaveNameStmt->execute([':id' => $leave_type]);
+    $leaveName = strtolower(trim($leaveNameStmt->fetchColumn()));
 
-$sql = "INSERT INTO leave_requests 
-        (user_id, leave_type_id, start_date, end_date, reason, total_days, status)
-        VALUES (:user_id, :leave_type, :start_date, :end_date, :reason, :total_days, 'pending')";
-            $stmt = $pdo->prepare($sql);
-            $stmt->execute([
-                ':user_id' => $user_id,
-                ':leave_type' => $leave_type,
-                ':start_date' => $start_date,
-                ':end_date' => $end_date,
-                ':reason' => $reason,
-                ':total_days' => $total_days
-            ]);
+    $status = (strpos($leaveName, 'annual') !== false) ? 'pending_manager' : 'pending_hr';
+
+
+    $sql = "INSERT INTO leave_requests 
+            (user_id, leave_type_id, start_date, end_date, reason, total_days, status)
+            VALUES (:user_id, :leave_type, :start_date, :end_date, :reason, :total_days, :status)";
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute([
+        ':user_id' => $user_id,
+        ':leave_type' => $leave_type,
+        ':start_date' => $start_date,
+        ':end_date'   => $end_date,
+        ':reason'     => $reason,
+        ':total_days' => $total_days,
+        ':status'     => $status
+    ]);
 
             $success = "✅ Leave request submitted successfully! Total Days: $total_days";
         } catch (PDOException $e) {
