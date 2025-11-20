@@ -69,8 +69,8 @@ $employees = $stmt->fetchAll(PDO::FETCH_ASSOC);
     .filter-form input, .filter-form select {padding: 8px;border: 1px solid #ccc;border-radius: 6px;}
     .filter-form button {background: #007bff;color: white;border: none;padding: 8px 14px;border-radius: 6px;cursor: pointer;transition: background 0.2s;}
     .filter-form button:hover {background: #0056b3;}
-    .btn-view {background: #2563eb;color: #fff;padding: 6px 12px;border-radius: 6px;text-decoration: none;font-size: 0.85rem;transition: background 0.2s ease;}
-    .btn-view:hover { background: #1d4ed8; }
+    .btn-view {background: #007bff;color: #fff;padding: 6px 12px;border-radius: 6px;text-decoration: none;font-size: 0.85rem;transition: background 0.2s ease;}
+    .btn-view:hover { background: #0056b3; }
   </style>
 </head>
 <body>
