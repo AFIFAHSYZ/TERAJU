@@ -28,15 +28,20 @@ function calculateEntitledDays($pdo, $user_id, $leave_type_id) {
     ");
     $stmt->execute(['id' => $leave_type_id]);
     $lt = $stmt->fetch(PDO::FETCH_ASSOC);
-
     if (!$lt) return 0;
 
     $leave_name = strtolower($lt['name']);
     $default_limit = (float)$lt['default_limit'];
 
-    // 2. Fixed leave types
-    if (strpos($leave_name, 'maternity') !== false) return 60;
-    if (strpos($leave_name, 'hospital') !== false) return $default_limit;
+    $today = new DateTime();
+    $current_year = (int)$today->format('Y');
+    $current_month = (int)$today->format('n');
+
+    // 2. Fixed leave types (Maternity, Emergency, Hospitalized)
+    $fixed_leave_ids = [3, 4, 5]; // IDs from leave_types table
+    if (in_array($leave_type_id, $fixed_leave_ids)) {
+        return $default_limit;
+    }
 
     // 3. Fetch join date
     $stmt = $pdo->prepare("SELECT date_joined FROM users WHERE id = :uid");
@@ -45,12 +50,28 @@ function calculateEntitledDays($pdo, $user_id, $leave_type_id) {
     if (!$join_date) return 0;
 
     $join = new DateTime($join_date);
-    $today = new DateTime();
-    $current_year = (int)date('Y');
-
+    $join_year = (int)$join->format('Y');
+    $join_month = (int)$join->format('n');
     $years = $join->diff($today)->y;
 
-    // 4. Fetch policy for Annual/Sick
+    // 4. Sick Leave (tenure-based)
+    if ($leave_type_id == 2) { // Sick Leave
+        $stmt = $pdo->prepare("
+            SELECT days_per_year
+            FROM leave_tenure_policy
+            WHERE leave_type_id = :ltid
+              AND min_years <= :yrs
+              AND (max_years IS NULL OR max_years >= :yrs)
+            ORDER BY min_years DESC
+            LIMIT 1
+        ");
+        $stmt->execute(['ltid' => $leave_type_id, 'yrs' => $years]);
+        $days_per_year = $stmt->fetchColumn();
+        return $days_per_year ? (float)$days_per_year : 0;
+    }
+
+    // 5. Annual Leave (accrual-based)
+    // Fetch tenure-based days per year
     $stmt = $pdo->prepare("
         SELECT days_per_year
         FROM leave_tenure_policy
@@ -61,26 +82,29 @@ function calculateEntitledDays($pdo, $user_id, $leave_type_id) {
         LIMIT 1
     ");
     $stmt->execute(['ltid' => $leave_type_id, 'yrs' => $years]);
-
     $days_per_year = $stmt->fetchColumn();
     if (!$days_per_year) $days_per_year = $default_limit;
 
-    // 5. First year (prorate)
-    if ((int)$join->format("Y") == $current_year) {
+// Monthly accrual
+$monthly_accrual = $days_per_year / 12;
 
-        $start_month = (int)$join->format("n");
-        $current_month = (int)$today->format("n");
-
-        $months = ($current_month - $start_month + 1);
-        if ($months < 1) $months = 1;
-
-        return round(($days_per_year / 12) * $months, 2);
-    }
-
-    // 6. After first year: ALWAYS full entitlement
-    return round($days_per_year, 2);
+// Months to accrue
+if ($join->format('Y') < $today->format('Y')) {
+    $months_elapsed = (int)$today->format('n'); // Jan = 1 → current month
+} else {
+    $join_month = (int)$join->format('n');
+    $current_month = (int)$today->format('n');
+    $months_elapsed = $current_month - $join_month + 1;
+    if ($months_elapsed < 0) $months_elapsed = 0;
 }
 
+// Fetch carry forward
+$carry = (float)$stmt->fetchColumn();
+
+$entitlement = $carry + ($monthly_accrual * $months_elapsed);
+
+    return round($entitlement, 2);
+}
 
 // ==============================
 // Fetch leave types and sync balances
