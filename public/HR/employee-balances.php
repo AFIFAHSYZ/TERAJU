@@ -81,10 +81,24 @@ $requests = $stmt2->fetchAll(PDO::FETCH_ASSOC);
   .card h2 { margin-bottom: 5px; font-size: 1.5rem; color: #1e293b; }
   .employee-info { margin-bottom: 20px; background: #f8fafc; padding: 15px; border-radius: 10px; }
   .employee-info p { margin: 5px 0; }
-  table.leave-table { width: 100%; border-collapse: collapse; margin-top: 10px; border-radius: 10px; overflow: hidden; }
-  table.leave-table th, table.leave-table td { border: 1px solid #e5e7eb; padding: 12px; text-align: center; }
-  table.leave-table th { background: #2563eb; color: #fff; text-transform: uppercase; font-size: 0.9rem; }
-  table.leave-table tr:nth-child(even) { background: #f9fafb; }
+  /* Compact Table Styling */
+  table.leave-table {width: 100%;border-collapse: collapse;margin-top: 10px;border-radius: 10px;overflow: hidden;font-size: 0.9rem;}
+
+  table.leave-table th,
+  table.leave-table td {border: 1px solid #e2e8f0;padding: 8px 10px;text-align: center;}
+  table.leave-table th {background: #334155;color: #fff;text-transform: uppercase;font-size: 0.8rem;letter-spacing: 0.5px;}
+  table.leave-table tr:nth-child(even) {background: #f1f5f9;}
+  table.leave-table tr:hover {background: #e2e8f0;}
+
+  /* Compact Carry Cell */
+  .carry-cell {min-width: 80px;}
+  input.carry-input {width: 50px;padding: 3px;font-size: 0.85rem;}
+
+  /* Leave Records Header */
+  .record-table th {background: #334155 !important; font-size: 0.8rem;}
+
+  /* Status badge compact */
+  .status-badge {padding: 3px 6px; font-size: 0.75rem;border-radius: 5px;}
   .btn-back { background: #64748b; color: #fff; padding: 6px 12px; border-radius: 6px; text-decoration: none; font-weight: 500; transition: 0.2s; }
   .btn-back:hover { background: #475569; }
 
@@ -108,13 +122,7 @@ $requests = $stmt2->fetchAll(PDO::FETCH_ASSOC);
 
   /* Filter Controls */
   .filters { display: flex; gap: 10px; align-items: center; }
-  .filters select, .filters button {
-    padding: 6px 10px;
-    border: 1px solid #cbd5e1;
-    border-radius: 6px;
-    background: #fff;
-    cursor: pointer;
-  }
+  .filters select, .filters button {padding: 6px 10px;border: 1px solid #cbd5e1;border-radius: 6px;background: #fff;cursor: pointer;}
   .filters button { background: #e5e7eb; }
   .filters button:hover { background: #d1d5db; }
 </style>
