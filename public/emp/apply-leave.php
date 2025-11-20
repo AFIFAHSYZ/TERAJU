@@ -29,7 +29,7 @@ function isEmergencyLeave($pdo, $leave_type_id) {
     return stripos(trim($row['name']), 'emergency') !== false;
 }
 
-// Calculate total leave days
+// Calculate total leave days (used server-side for non-annual)
 function calculateLeaveDaysPHP($start_date, $end_date, $leave_type_id, $saturday_cycle, $pdo) {
     if (isEmergencyLeave($pdo, $leave_type_id)) {
         return 0.5;
@@ -44,20 +44,17 @@ function calculateLeaveDaysPHP($start_date, $end_date, $leave_type_id, $saturday
 
         if ($dow === 0) {
             // Sunday off
-} elseif ($dow === 6) {
-    // Saturday logic
-    if ($saturday_cycle === 'none') {
-        // Never works on Saturday
-        // do nothing (always off)
-    } else {
-        $yearStart = new DateTime($start->format('Y-01-01'));
-        $weeksSinceYearStart = floor($start->diff($yearStart)->days / 7);
-        $isWorkWeek = ($saturday_cycle === 'work')
-            ? ($weeksSinceYearStart % 2 === 0)
-            : ($weeksSinceYearStart % 2 === 1);
-        if ($isWorkWeek) $days += 0.5;
-    }
-}else {
+        } elseif ($dow === 6) {
+            // Saturday logic
+            if ($saturday_cycle !== 'none') {
+                $yearStart = new DateTime($start->format('Y-01-01'));
+                $weeksSinceYearStart = floor($start->diff($yearStart)->days / 7);
+                $isWorkWeek = ($saturday_cycle === 'work')
+                    ? ($weeksSinceYearStart % 2 === 0)
+                    : ($weeksSinceYearStart % 2 === 1);
+                if ($isWorkWeek) $days += 0.5;
+            }
+        } else {
             $days += 1.0;
         }
 
@@ -76,11 +73,14 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
     if ($leave_type && $start_date && $end_date) {
         try {
-            $total_days = calculateLeaveDaysPHP($start_date, $end_date, $leave_type, $saturday_cycle, $pdo);
+            // Use manual total_days if submitted, else calculate
+            $total_days = isset($_POST['total_days']) && is_numeric($_POST['total_days'])
+                ? (float) $_POST['total_days']
+                : calculateLeaveDaysPHP($start_date, $end_date, $leave_type, $saturday_cycle, $pdo);
 
-$sql = "INSERT INTO leave_requests 
-        (user_id, leave_type_id, start_date, end_date, reason, total_days, status)
-        VALUES (:user_id, :leave_type, :start_date, :end_date, :reason, :total_days, 'pending')";
+            $sql = "INSERT INTO leave_requests 
+                    (user_id, leave_type_id, start_date, end_date, reason, total_days, status)
+                    VALUES (:user_id, :leave_type, :start_date, :end_date, :reason, :total_days, 'pending')";
             $stmt = $pdo->prepare($sql);
             $stmt->execute([
                 ':user_id' => $user_id,
@@ -93,8 +93,8 @@ $sql = "INSERT INTO leave_requests
 
             $success = "✅ Leave request submitted successfully! Total Days: $total_days";
         } catch (PDOException $e) {
-    $error = "❌ Failed to submit leave request: " . $e->getMessage();
-}
+            $error = "❌ Failed to submit leave request: " . $e->getMessage();
+        }
     } else {
         $error = "⚠️ Please fill in all required fields.";
     }
@@ -167,12 +167,16 @@ footer {text-align: center; margin-top: 40px;color: #666;font-size: 0.9rem;}
           </div>
 
           <div class="form-group">
-            <label for="end_date">End Date <span style="color: red;">*</span></label>
-            <input type="text" id="end_date" name="end_date" required>
+              <label for="end_date">End Date <span style="color:red;">*</span></label>
+              <input type="text" id="end_date" name="end_date" readonly>
+          </div>
+
+          <div class="form-group">
+              <label for="total_days">Total Days <span style="color:red;">*</span></label>
+              <input type="number" step="0.5" id="total_days" name="total_days" value="0" required>
+              <small style="color: #555;">For Annual Leave: enter total days and end date will be auto-calculated. For others: choose start & end.</small>
           </div>
         </div>
-
-        <p id="dayCount" style="font-weight:600; color:#2563eb; margin-top:10px;">Total Days: 0</p>
 
         <button type="submit" class="btn-full" style="margin-top:20px;">Submit Leave Request</button>
       </form>
@@ -189,94 +193,221 @@ footer {text-align: center; margin-top: 40px;color: #666;font-size: 0.9rem;}
 </div>
 
 <script>
-const dayCount = document.getElementById("dayCount");
+/*
+  Clean JS:
+  - Annual: total_days editable (step 0.5) -> calculate end (readonly)
+  - Other: choose start+end -> calculate total_days (readonly)
+  - Emergency detected by name includes('emergency') -> total 0.5, end = start
+  - Saturday cycle respected (variable from PHP)
+  - Flatpickr preserved (Sundays disabled, minDate logic)
+*/
+
 const saturdayCycle = '<?= $saturday_cycle ?>';
-const leaveTypeSelect = document.getElementById('leave_type');
 
-// Disable Sundays
-function disableSundays(date) {
-  return date.getDay() === 0;
-}
-
-// Calculate total days
-function calculateDaysJS(start, end, leaveTypeText, cycle) {
-  if (!start || !end) return 0;
-  if (leaveTypeText && leaveTypeText.toLowerCase().includes('emergency')) return 0.5;
-
-  let count = 0.0;
-  let current = new Date(start);
-
-  while (current <= end) {
-    const dow = current.getDay();
-    if (dow === 0) {
-      // Sunday off
-} else if (dow === 6) {
-  if (cycle === 'none') {
-    // never works Saturday
-  } else {
-    const yearStart = new Date(current.getFullYear(), 0, 1);
-    const diffDays = Math.floor((current - yearStart) / (1000*60*60*24));
-    const weeksSinceYearStart = Math.floor(diffDays / 7);
-    const isWorkWeek = (cycle === 'work') ? (weeksSinceYearStart % 2 === 0) : (weeksSinceYearStart % 2 === 1);
-    if (isWorkWeek) count += 0.5;
-  }
-}
-
- else {
-      count += 1.0;
-    }
-    current.setDate(current.getDate() + 1);
-  }
-
-  return Math.round(count*100)/100;
-}
-
-// Update total day count
-function updateDayCount() {
-  const start = startPicker.selectedDates[0];
-  const end = endPicker.selectedDates[0];
-  const leaveTypeText = leaveTypeSelect.options[leaveTypeSelect.selectedIndex]?.text || '';
-
-  if (start && end && end >= start) {
-    const total = calculateDaysJS(start, end, leaveTypeText, saturdayCycle);
-    dayCount.textContent = `Total Days: ${total}`;
-  } else {
-    dayCount.textContent = "Total Days: 0";
-  }
-}
-
-// Handle emergency leave: end date = start date, readonly
-function handleEmergencyLeave() {
-  const leaveTypeText = leaveTypeSelect.options[leaveTypeSelect.selectedIndex]?.text || '';
-  if (leaveTypeText.toLowerCase().includes('emergency')) {
-    if (startPicker.selectedDates[0]) {
-      endPicker.setDate(startPicker.selectedDates[0], true);
-    }
-    endPicker.input.setAttribute('readonly', true);
-  } else {
-    endPicker.input.removeAttribute('readonly');
-  }
-  updateDayCount();
-}
+// Flatpickr helpers and init
+function disableSundays(date) { return date.getDay() === 0; }
 
 const startPicker = flatpickr("#start_date", {
   dateFormat: "Y-m-d",
   disable: [disableSundays],
-  onChange: (selectedDates, dateStr) => {
-    endPicker.set('minDate', dateStr);
-    handleEmergencyLeave();
+  onChange: function(selectedDates) {
+    if (selectedDates && selectedDates[0]) {
+      // ensure end cannot be set before start
+      endPicker.set('minDate', selectedDates[0]);
+    } else {
+      endPicker.set('minDate', null);
+    }
+    onStartChanged();
   }
 });
 
 const endPicker = flatpickr("#end_date", {
   dateFormat: "Y-m-d",
   disable: [disableSundays],
-  onChange: updateDayCount
+  onChange: function(selectedDates) {
+    onEndChanged();
+  }
 });
 
-// Event listener for leave type changes
-leaveTypeSelect.addEventListener('change', handleEmergencyLeave);
-leaveTypeSelect.addEventListener('change', updateDayCount);
+// DOM elements
+const leaveTypeSelect = document.getElementById('leave_type');
+const totalDaysInput = document.getElementById('total_days');
+const endInput = document.getElementById('end_date');
+const startInput = document.getElementById('start_date');
+
+// tiny helpers
+function txtOfLeave() {
+  return (leaveTypeSelect.options[leaveTypeSelect.selectedIndex]?.text || '').toLowerCase();
+}
+function isAnnual() { return txtOfLeave().includes('annual'); }
+function isEmergency() { return txtOfLeave().includes('emergency'); }
+
+// SATURDAY work-week detection (same logic as server)
+function isWorkSaturday(date) {
+  if (saturdayCycle === 'none') return false;
+  const yearStart = new Date(date.getFullYear(), 0, 1);
+  const diffDays = Math.floor((date - yearStart) / (1000*60*60*24));
+  const weeksSince = Math.floor(diffDays / 7);
+  return (saturdayCycle === 'work') ? (weeksSince % 2 === 0) : (weeksSince % 2 === 1);
+}
+
+// Calculate end date from start + totalDays (annual mode)
+// Count includes start day (i.e., total_days=1 -> end = start if weekday)
+function calculateEndDateForAnnual() {
+  const startDate = startPicker.selectedDates[0];
+  const total = parseFloat(totalDaysInput.value);
+
+  if (!startDate || isNaN(total) || total <= 0) {
+    endPicker.clear();
+    endInput.value = '';
+    return;
+  }
+
+  let remaining = total;
+  let current = new Date(startDate);
+
+  // loop until remaining consumed (include start)
+  while (true) {
+    const dow = current.getDay();
+    if (dow === 0) {
+      // Sunday skip
+    } else if (dow === 6) {
+      if (isWorkSaturday(current)) remaining -= 0.5;
+    } else {
+      remaining -= 1.0;
+    }
+
+    if (remaining <= 0) break;
+
+    current.setDate(current.getDate() + 1);
+  }
+
+  const iso = current.toISOString().split('T')[0];
+  endPicker.setDate(iso, true, 'Y-m-d');
+}
+
+// Calculate totalDays from start+end (non-annual). inclusive
+function calculateTotalDaysFromRange() {
+  const startDate = startPicker.selectedDates[0];
+  const endDate = endPicker.selectedDates[0];
+  if (!startDate || !endDate || endDate < startDate) {
+    totalDaysInput.value = 0;
+    return;
+  }
+
+  let count = 0.0;
+  let current = new Date(startDate);
+
+  while (current <= endDate) {
+    const dow = current.getDay();
+    if (dow === 0) {
+      // skip Sundays
+    } else if (dow === 6) {
+      if (isWorkSaturday(current)) count += 0.5;
+    } else {
+      count += 1.0;
+    }
+    current.setDate(current.getDate() + 1);
+  }
+
+  totalDaysInput.value = Math.round(count * 100) / 100;
+}
+
+// UI controller: set readonly / behaviors based on leave type
+function updateUIForLeaveType() {
+  const txt = txtOfLeave();
+
+  if (isEmergency()) {
+    // emergency: total = 0.5, end = start, both readonly
+    totalDaysInput.value = 0.5;
+    totalDaysInput.setAttribute('readonly', true);
+    totalDaysInput.step = '0.5';
+
+    const s = startPicker.selectedDates[0];
+    if (s) {
+      const iso = s.toISOString().split('T')[0];
+      endPicker.setDate(iso, true, 'Y-m-d');
+    } else {
+      endPicker.clear();
+    }
+    endInput.setAttribute('readonly', true);
+    return;
+  }
+
+  if (isAnnual()) {
+    // annual: user inputs total, end auto calc, end readonly
+    totalDaysInput.removeAttribute('readonly');
+    totalDaysInput.step = '0.5';
+    endInput.setAttribute('readonly', true);
+
+    // If start exists and total has value, recalc end
+    if (startPicker.selectedDates[0] && parseFloat(totalDaysInput.value) > 0) {
+      calculateEndDateForAnnual();
+    } else {
+      endPicker.clear();
+      endInput.value = '';
+    }
+    return;
+  }
+
+  // normal (non-annual, non-emergency)
+  totalDaysInput.setAttribute('readonly', true);
+  totalDaysInput.step = '0.5'; // keep step OK but readonly
+  endInput.removeAttribute('readonly');
+
+  // If both start+end exist, calculate total
+  if (startPicker.selectedDates[0] && endPicker.selectedDates[0]) calculateTotalDaysFromRange();
+}
+
+// Handlers triggered by Flatpickr / inputs
+function onStartChanged() {
+  const txt = txtOfLeave();
+
+  // ensure end minDate is updated (flatpickr already sets)
+  // For emergency: set end = start
+  if (isEmergency()) {
+    const s = startPicker.selectedDates[0];
+    if (s) endPicker.setDate(s, true, 'Y-m-d');
+    endInput.setAttribute('readonly', true);
+  }
+
+  if (isAnnual()) {
+    // recalc end from total if total provided
+    calculateEndDateForAnnual();
+  } else {
+    // recalc total if end exists
+    if (endPicker.selectedDates[0]) calculateTotalDaysFromRange();
+  }
+}
+
+function onEndChanged() {
+  if (!isAnnual() && !isEmergency()) {
+    calculateTotalDaysFromRange();
+  }
+}
+
+// totalDays input changed (typing or arrows)
+function onTotalChanged() {
+  if (isAnnual()) {
+    // do not allow the system to overwrite user input; just use it
+    calculateEndDateForAnnual();
+  }
+}
+
+// wire events
+leaveTypeSelect.addEventListener('change', function() {
+  // when changing leave type reset behaviours; keep total value unless switching away from annual
+  updateUIForLeaveType();
+});
+
+totalDaysInput.addEventListener('input', onTotalChanged);
+totalDaysInput.addEventListener('change', onTotalChanged);
+
+// initialize once DOM loaded
+document.addEventListener('DOMContentLoaded', function() {
+  // set initial read/write states correctly
+  updateUIForLeaveType();
+});
 </script>
 
 </body>
