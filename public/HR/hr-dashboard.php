@@ -24,67 +24,42 @@ if ($user['position'] !== 'hr') {
 
 // --- Stats Cards ---
 $stats = [
-    'total_requests' => 0,
+    'total' => 0,
     'approved' => 0,
     'pending' => 0,
     'rejected' => 0
 ];
 
 try {
-    $sql = "SELECT 
-                COUNT(*) AS total,
-                SUM(CASE WHEN status='approved' THEN 1 ELSE 0 END) AS approved,
-                SUM(CASE WHEN status='pending' THEN 1 ELSE 0 END) AS pending,
-                SUM(CASE WHEN status='rejected' THEN 1 ELSE 0 END) AS rejected
-            FROM leave_requests";
+    $sql = "
+        SELECT 
+            COUNT(*) AS total,
+            SUM(CASE WHEN status='approved' THEN 1 ELSE 0 END) AS approved,
+            SUM(CASE WHEN status='pending' THEN 1 ELSE 0 END) AS pending,
+            SUM(CASE WHEN status='rejected' THEN 1 ELSE 0 END) AS rejected
+        FROM leave_requests
+    ";
     $stmt = $pdo->query($sql);
     $stats = $stmt->fetch(PDO::FETCH_ASSOC);
 } catch (PDOException $e) {
-    // fallback
+    // fallback on error
 }
 
-// --- Filters ---
-$statusFilter = $_GET['status'] ?? '';
-$typeFilter = $_GET['type'] ?? '';
-$startDate = $_GET['start_date'] ?? '';
-$endDate = $_GET['end_date'] ?? '';
-
-$where = [];
-$params = [];
-
-if ($statusFilter) {
-    $where[] = "lr.status = :status";
-    $params[':status'] = $statusFilter;
-}
-if ($typeFilter) {
-    $where[] = "lt.id = :type";
-    $params[':type'] = $typeFilter;
-}
-if ($startDate && $endDate) {
-    $where[] = "lr.start_date BETWEEN :start AND :end";
-    $params[':start'] = $startDate;
-    $params[':end'] = $endDate;
-}
-
-$whereSQL = $where ? 'WHERE ' . implode(' AND ', $where) : '';
-
-// --- Fetch All Leave Requests ---
+// --- Fetch Recent Leave Requests ---
 $sql = "
-SELECT lr.id, u.name AS employee_name, u.position, lt.name AS leave_type,
-       lr.start_date, lr.end_date, lr.reason, lr.status, lr.applied_at
-FROM leave_requests lr
-JOIN users u ON lr.user_id = u.id
-LEFT JOIN leave_types lt ON lr.leave_type_id = lt.id
-$whereSQL
-ORDER BY lr.applied_at DESC
-LIMIT 5
+    SELECT lr.id, u.name AS employee_name, u.position,
+        lt.name AS leave_type, lr.start_date, lr.end_date,
+        lr.status, lr.applied_at
+    FROM leave_requests lr
+    JOIN users u ON lr.user_id = u.id
+    LEFT JOIN leave_types lt ON lr.leave_type_id = lt.id
+    ORDER BY lr.applied_at DESC
+    LIMIT 5
 ";
 $stmt = $pdo->prepare($sql);
-$stmt->execute($params);
+$stmt->execute();
 $requests = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-// --- Leave Types for filter ---
-$types = $pdo->query("SELECT id, name FROM leave_types ORDER BY name ASC")->fetchAll(PDO::FETCH_ASSOC);
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -92,22 +67,51 @@ $types = $pdo->query("SELECT id, name FROM leave_types ORDER BY name ASC")->fetc
 <meta charset="UTF-8">
 <title>HR Dashboard | LMS</title>
 <link rel="stylesheet" href="../../assets/css/style.css">
+
 <style>
-    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; margin-bottom: 25px; }
-    .stat-card { background: #f8fafc; border-radius: 12px; padding: 15px; text-align: center; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
-    .stat-card h3 { margin: 0; font-size: 2em; color: #2563eb; }
-    .stat-card p { color: #475569; margin-top: 6px; }
-    .filter-grid { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 15px; }
-    .filter-grid select, .filter-grid input[type="date"] { padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; }
-    .sidebar ul li {position: relative;}
-    .sidebar ul li a {display: flex;justify-content: space-between; align-items: center; padding: 10px 20px;font-size: 0.9rem; color: #fff; text-decoration: none;}
-    .sidebar ul li a .arrow {font-size: 0.8rem; transition: transform 0.3s ease;}
-    .sidebar ul li.active > a .arrow {transform: rotate(180deg);}
-    .sidebar ul li .dropdown-menu {display: none;flex-direction: column;background: #1c2942;padding-left: 0;}
-    .sidebar ul li.active .dropdown-menu {display: flex;}
-    .sidebar ul li .dropdown-menu li a {padding: 8px 30px;font-size: 0.85rem;}
-    .btn-link {display: inline-block; text-decoration: none;text-align: center;padding: 6px 12px;border-radius: 6px; color: #fff;background: #16a34a;font-weight: 600;font-size: 0.85rem;cursor: pointer;transition: background 0.3s;}
-    .btn-link:hover { background: #15803d; }
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 15px;
+        margin-bottom: 25px;
+    }
+    .stat-card {
+        background: #f8fafc;
+        border-radius: 12px;
+        padding: 15px;
+        text-align: center;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    }
+    .stat-card h3 {
+        margin: 0;
+        font-size: 2em;
+        color: #2563eb;
+    }
+    .stat-card p {
+        color: #475569;
+        margin-top: 6px;
+    }
+
+    /* Compact Table */
+    .leave-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+        margin-top: 10px;
+    }
+    .leave-table th, .leave-table td {
+        padding: 6px 8px;
+        border-bottom: 1px solid #e5e7eb;
+        text-align: left;
+    }
+    .leave-table th {
+        background: #f3f4f6;
+        font-weight: 600;
+    }
+    .leave-table tr:nth-child(even) {
+        background: #fafafa;
+    }
+
 </style>
 </head>
 <body>
@@ -121,16 +125,19 @@ $types = $pdo->query("SELECT id, name FROM leave_types ORDER BY name ASC")->fetc
 
 <main class="main-content">
     <div class="card">
+
+        <!-- Stats Section -->
         <div class="stats-grid">
-            <div class="stat-card"><h3><?= $stats['total'] ?? 0 ?></h3><p>Total Requests</p></div>
-            <div class="stat-card"><h3><?= $stats['approved'] ?? 0 ?></h3><p>Approved</p></div>
-            <div class="stat-card"><h3><?= $stats['pending'] ?? 0 ?></h3><p>Pending</p></div>
-            <div class="stat-card"><h3><?= $stats['rejected'] ?? 0 ?></h3><p>Rejected</p></div>
+            <div class="stat-card"><h3><?= $stats['total'] ?></h3><p>Total Requests</p></div>
+            <div class="stat-card"><h3><?= $stats['approved'] ?></h3><p>Approved</p></div>
+            <div class="stat-card"><h3><?= $stats['pending'] ?></h3><p>Pending</p></div>
+            <div class="stat-card"><h3><?= $stats['rejected'] ?></h3><p>Rejected</p></div>
         </div>
 
         <hr><br>
         <h2>Recent Leave Requests</h2>
 
+        <!-- Requests Table -->
         <table class="leave-table">
             <thead>
                 <tr>
@@ -144,9 +151,12 @@ $types = $pdo->query("SELECT id, name FROM leave_types ORDER BY name ASC")->fetc
                     <th>Action</th>
                 </tr>
             </thead>
+
             <tbody>
                 <?php if (empty($requests)): ?>
-                    <tr><td colspan="8" style="text-align:center;">No leave records found</td></tr>
+                    <tr>
+                        <td colspan="8" style="text-align:center;">No leave records found</td>
+                    </tr>
                 <?php else: ?>
                     <?php foreach ($requests as $i => $r): ?>
                         <tr>
@@ -156,35 +166,25 @@ $types = $pdo->query("SELECT id, name FROM leave_types ORDER BY name ASC")->fetc
                             <td><?= htmlspecialchars($r['leave_type'] ?? '-') ?></td>
                             <td><?= htmlspecialchars($r['start_date']) ?></td>
                             <td><?= htmlspecialchars($r['end_date']) ?></td>
+
                             <td class="status <?= strtolower($r['status']) ?>">
                                 <?= ucfirst($r['status']) ?>
                             </td>
-                            <td>
-                                <?php
-                                $leaveType = strtolower($r['leave_type'] ?? '');
-                                $status = strtolower($r['status'] ?? '');
 
-                                if ($leaveType !== 'annual leave') {
-                                    if ($status !== 'verified') {
-                                        ?>
-                                        <a href="verify-leave.php?id=<?= $r['id'] ?>" class="btn-link">Review</a>
-                                        <?php
-                                    } else {
-                                        echo '<em>✔ Verified</em>';
-                                    }
-                                } else {
-                                    echo '<em>-</em>';
-                                }
-                                ?>
+                            <td>
+                                <a href="verify-leave.php?id=<?= $r['id'] ?>"             
+                                        style="background:#007bff;color:white;padding:6px 10px;border-radius:5px;text-decoration:none;">Review</a>
                             </td>
                         </tr>
                     <?php endforeach; ?>
                 <?php endif; ?>
             </tbody>
         </table>
+
     </div>
 </main>
+
 </div>
-<script src="../../assets/js/sidebar.js"></script> 
+<script src="../../assets/js/sidebar.js"></script>
 </body>
 </html>
