@@ -157,8 +157,8 @@ footer {text-align: center; margin-top: 40px;color: #666;font-size: 0.9rem;}
           </div>
 
           <div class="form-group">
-            <label for="reason">Reason (optional)</label>
-            <textarea name="reason" id="reason" rows="3"></textarea>
+            <label for="reason">Reason <span style="color: red;">*</span></label>
+            <textarea name="reason" id="reason" rows="3"required></textarea>
           </div>
 
           <div class="form-group">
