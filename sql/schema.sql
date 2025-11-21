@@ -31,8 +31,10 @@ CREATE TABLE public.leave_balances (
     carry_forward INTEGER DEFAULT 0,
     entitled_days INTEGER DEFAULT 0,
     total_available INTEGER,
-    CONSTRAINT fk_lb_user FOREIGN KEY (user_id) REFERENCES public.users (id) ON DELETE CASCADE,
-    CONSTRAINT fk_lb_leave_type FOREIGN KEY (leave_type_id) REFERENCES public.leave_types (id) ON DELETE CASCADE
+    CONSTRAINT fk_lb_user FOREIGN KEY (user_id) 
+        REFERENCES public.users (id) ON DELETE CASCADE,
+    CONSTRAINT fk_lb_leave_type FOREIGN KEY (leave_type_id) 
+        REFERENCES public.leave_types (id) ON DELETE CASCADE
 );
 
 -- LEAVE REQUESTS TABLE
@@ -48,9 +50,20 @@ CREATE TABLE public.leave_requests (
     approved_by INTEGER,
     decision_date TIMESTAMP,
     total_days NUMERIC,
-    CONSTRAINT fk_lr_user FOREIGN KEY (user_id) REFERENCES public.users (id) ON DELETE CASCADE,
-    CONSTRAINT fk_lr_leave_type FOREIGN KEY (leave_type_id) REFERENCES public.leave_types (id) ON DELETE SET NULL,
-    CONSTRAINT fk_lr_approver FOREIGN KEY (approved_by) REFERENCES public.users (id) ON DELETE SET NULL
+    verified_by INTEGER,
+    verified_at TIMESTAMP,
+
+    CONSTRAINT fk_lr_user FOREIGN KEY (user_id)
+        REFERENCES public.users (id) ON DELETE CASCADE,
+
+    CONSTRAINT fk_lr_leave_type FOREIGN KEY (leave_type_id)
+        REFERENCES public.leave_types (id) ON DELETE SET NULL,
+
+    CONSTRAINT fk_lr_approver FOREIGN KEY (approved_by)
+        REFERENCES public.users (id) ON DELETE SET NULL,
+
+    CONSTRAINT fk_lr_verifier FOREIGN KEY (verified_by)
+        REFERENCES public.users (id) ON DELETE SET NULL
 );
 
 -- PUBLIC HOLIDAYS TABLE
