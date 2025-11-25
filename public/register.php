@@ -198,7 +198,7 @@ $project = strtoupper(clean_input($_POST['project'] ?? ''));
                         <select name="position">
                             <option value="employee" <?= isset($position) && $position=='employee'?'selected':'' ?>>Employee</option>
                             <option value="manager" <?= isset($position) && $position=='manager'?'selected':'' ?>>Manager</option>
-                            <option value="HR" <?= isset($position) && $position=='HR'?'selected':'' ?>>HR</option>
+                            <option value="hr" <?= isset($position) && $position=='hr'?'selected':'' ?>>HR</option>
                         </select>
                     </div>
 
