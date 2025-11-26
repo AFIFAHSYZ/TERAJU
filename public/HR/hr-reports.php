@@ -40,152 +40,60 @@ $summary = $pdo->query("
 <title>HR Leave Reports | Teraju LMS</title>
 <link rel="stylesheet" href="../../assets/css/style.css">
 <style>
-body {
-  font-family: "Segoe UI", Arial, sans-serif;
-  background: #f1f5f9;
-  margin: 0;
-  color: #111827;
-}
+body {font-family: "Segoe UI", Arial, sans-serif;background: #f1f5f9;margin: 0;color: #111827;}
 
 .layout { display: flex; }
 .main-content { flex: 1; padding: 20px; }
-.card {
-  background: #fff;
-  padding: 24px;
-  border-radius: 12px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-}
+.card {background: #fff;padding: 24px;border-radius: 12px;box-shadow: 0 4px 12px rgba(0,0,0,0.08);}
 
 /* Filters */
-.filter-bar {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin-bottom: 20px;
-}
+.filter-bar {display: flex;flex-wrap: wrap;  gap: 10px;margin-bottom: 20px;}
 .filter-bar select,
-.filter-bar input {
-  padding: 6px 10px;
-  border-radius: 6px;
-  border: 1px solid #cbd5e1;
-  font-size: 0.95rem;
-}
-.filter-bar button {
-  padding: 8px 14px;
-  background: #3b82f6;
-  color: #fff;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-.filter-bar button:hover {
-  background: #2563eb;
-}
+.filter-bar input {padding: 6px 10px;border-radius: 6px;border: 1px solid #cbd5e1;font-size: 0.95rem;}
+.filter-bar button {padding: 8px 14px;background: #3b82f6;color: #fff;border: none;border-radius: 6px;cursor: pointer;transition: background 0.2s;}
+.filter-bar button:hover {background: #2563eb;}
 
 /* Table */
 .table-container { overflow-x: auto; }
-.leave-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.9rem;
-  border-radius: 8px;
-  overflow: hidden;
-}
+.leave-table {width: 100%;border-collapse: collapse;  font-size: 0.9rem;border-radius: 8px;overflow: hidden;}
 .leave-table th,
-.leave-table td {
-  border: 1px solid #e5e7eb;
-  padding: 6px 10px; /* compact row spacing */
-  text-align: center;
-  vertical-align: middle;
-}
-.leave-table th {
-  background: #f3f4f6;
-  font-weight: 600;
-}
+.leave-table td {border: 1px solid #e5e7eb;padding: 6px 10px;text-align: center;vertical-align: middle;}
+.leave-table th {background: #f3f4f6;font-weight: 600;}
 .leave-table tbody tr:nth-child(even) { background: #f9fafb; }
 
 /* Print area */
-.print-area {
-  display: none;
-  background: #fff;
-  padding: 20px;
-  box-sizing: border-box;
-}
-.print-header {
-  text-align: center;
-  margin-bottom: 20px;
-}
-.print-header img {
-  height: 60px;
-  margin-bottom: 8px;
-}
-.print-header h2 {
-  margin: 5px 0;
-  font-size: 1.4rem;
-}
+.print-area {display: none;background: #fff;padding: 20px;box-sizing: border-box;}
+.print-header {text-align: center;margin-bottom: 20px;}
+.print-header img {height: 60px;margin-bottom: 8px;}
+.print-header h2 {margin: 5px 0;font-size: 1.4rem;}
 .print-meta,
-.print-filter-summary {
-  font-size: 0.9rem;
-  color: #555;
-}
-.print-footer {
-  text-align: center;
-  font-size: 0.8rem;
-  color: #777;
-  margin-top: 25px;
-}
+.print-filter-summary {font-size: 0.9rem;color: #555;}
+.print-footer {text-align: center;font-size: 0.8rem;color: #777;margin-top: 25px;}
 
 /* Print styles */
-@media print {
-  @page { size: A4 portrait; margin: 0; }
+@media print {@page { size: A4 portrait; margin: 10mm; }
 
-  html, body {
-    width: 210mm;
-    height: 297mm;
-    margin: 0 !important;
-    padding: 0 !important;
-    background: #fff !important;
-  }
+  html, body {width: auto;height: auto;margin: 0 !important;padding: 0 !important;background: #fff !important;}
 
-  body * { visibility: hidden !important; }
-  .print-area { visibility: visible !important; display: block !important; }
-  .print-area * { visibility: visible !important; display: revert !important; }
+  /* Hide everything by default */
+  body * { display: none !important; }
+/* Show only the print area */
+  .print-area { display: block !important; position: static !important;width: 100% !important;padding: 0 !important;margin: 0 !important;background: #fff !important;box-sizing: border-box !important;}
 
-  .print-area {
-    position: fixed !important;
-    top: 0;
-    left: 0;
-    width: 100% !important;
-    padding: 10mm !important;
-    background: #fff !important;
-    box-sizing: border-box !important;
-  }
+  /* Make all children inside visible */
+  .print-area * { display: revert !important; }
 
-  /* Compact table style for print */
-  .leave-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 0.85rem;
-  }
+  /* Table styling */
+  .leave-table {width: 100%;border-collapse: collapse;font-size: 0.85rem;page-break-inside: auto !important;margin: 0;}
   .leave-table th,
-  .leave-table td {
-    border: 1px solid #000;
-    padding: 4px 6px; /* tighter print rows */
-    text-align: center;
-    vertical-align: middle;
-  }
-  .leave-table th {
-    background: #f3f4f6;
-    font-weight: 600;
-  }
+  .leave-table td {border: 1px solid #000;padding: 4px 6px;text-align: center;vertical-align: middle;}
+  .leave-table th { background: #f3f4f6; font-weight: 600; }
   .leave-table tbody tr:nth-child(even) { background: #f9fafb; }
 
-  .sidebar, .filter-bar, header, button, .card > h2 {
-    display: none !important;
-  }
-  tr { page-break-inside: avoid; }
+  .leave-table tr { page-break-inside: avoid; page-break-after: auto; }
+  .leave-table tbody { display: table-row-group !important; }
 }
+
 </style>
 </head>
 
