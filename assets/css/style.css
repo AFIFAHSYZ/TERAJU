@@ -373,3 +373,43 @@ footer {
     margin: 0;
 }
 
+.pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 6px;
+    margin: 25px 0;
+    font-family: inherit;
+}
+
+.pagination a,
+.pagination span {
+    padding: 8px 14px;
+    border-radius: 8px;
+    text-decoration: none;
+    border: 1px solid #e2e8f0;
+    background: #fff;
+    color: #334155;
+    font-size: 14px;
+    transition: all 0.2s ease;
+    min-width: 36px;
+    text-align: center;
+}
+
+.pagination a:hover {
+    background: #2563eb;
+    border-color: #2563eb;
+    color: #fff;
+    cursor: pointer;
+}
+
+.pagination .active {
+    background: #2563eb;
+    color: #fff;
+    border-color: #2563eb;
+}
+
+.pagination .disabled {
+    opacity: 0.4;
+    pointer-events: none;
+}
