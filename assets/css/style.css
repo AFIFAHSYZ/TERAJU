@@ -40,7 +40,7 @@ body {
 
 .sidebar h2 {
     text-align: center;
-    font-size: 1.4rem;
+    font-size: 1.3rem;
     font-weight: bold;
     margin-bottom: 30px;
     letter-spacing: 1px;
@@ -397,16 +397,16 @@ footer {
 }
 
 .pagination a:hover {
-    background: #2563eb;
-    border-color: #2563eb;
+    background: #dc7907;
+    border-color: #a85b04;
     color: #fff;
     cursor: pointer;
 }
 
 .pagination .active {
-    background: #2563eb;
+    background: #dc7907;
     color: #fff;
-    border-color: #2563eb;
+    border-color: #a85b04;
 }
 
 .pagination .disabled {
