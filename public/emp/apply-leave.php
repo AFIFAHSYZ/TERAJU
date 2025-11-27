@@ -20,6 +20,58 @@ $saturday_cycle = $user['saturday_cycle'] ?? 'work';
 // Fetch leave types
 $types = $pdo->query("SELECT id, name FROM leave_types ORDER BY name ASC")->fetchAll(PDO::FETCH_ASSOC);
 
+/**
+ * Encode an uploaded file for storage in a BYTEA column.
+ *
+ * @param array $file        The $_FILES['field'] array
+ * @param int   $maxBytes    Maximum allowed size in bytes (default 8MB)
+ * @param array $allowedMime Optional allowed MIME types (empty = allow all)
+ * @return array             ['data' => string|null, 'type' => string|null, 'name' => string|null, 'size' => int|null, 'error' => string|null]
+ */
+function encode_uploaded_file(array $file, int $maxBytes = 8388608, array $allowedMime = []): array {
+    if (!isset($file) || ($file['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_NO_FILE) {
+        return ['data' => null, 'type' => null, 'name' => null, 'size' => null, 'error' => null];
+    }
+
+    $err = $file['error'] ?? UPLOAD_ERR_OK;
+    if ($err !== UPLOAD_ERR_OK) {
+        return ['data' => null, 'type' => null, 'name' => null, 'size' => null, 'error' => "File upload error (code: $err)."];
+    }
+
+    $size = (int)($file['size'] ?? 0);
+    if ($size > $maxBytes) {
+        return ['data' => null, 'type' => null, 'name' => $file['name'] ?? null, 'size' => $size, 'error' => "Attachment too large. Max " . ($maxBytes/1024/1024) . "MB allowed."];
+    }
+
+    $tmp = $file['tmp_name'] ?? null;
+    if (!$tmp || !is_uploaded_file($tmp)) {
+        return ['data' => null, 'type' => null, 'name' => $file['name'] ?? null, 'size' => $size, 'error' => "Invalid uploaded file."];
+    }
+
+    $mime = null;
+    if (function_exists('finfo_open')) {
+        $finfo = finfo_open(FILEINFO_MIME_TYPE);
+        if ($finfo !== false) {
+            $mime = finfo_file($finfo, $tmp) ?: null;
+            finfo_close($finfo);
+        }
+    }
+    if (!$mime) {
+        $mime = $file['type'] ?? 'application/octet-stream';
+    }
+
+    if (!empty($allowedMime) && !in_array($mime, $allowedMime, true)) {
+        return ['data' => null, 'type' => $mime, 'name' => $file['name'] ?? null, 'size' => $size, 'error' => "File type not allowed: $mime"];
+    }
+
+    $data = @file_get_contents($tmp);
+    if ($data === false) {
+        return ['data' => null, 'type' => $mime, 'name' => $file['name'] ?? null, 'size' => $size, 'error' => "Failed to read uploaded file."];
+    }
+
+    return ['data' => $data, 'type' => $mime, 'name' => $file['name'] ?? null, 'size' => $size, 'error' => null];
+}
+
 // Helper: identify emergency leave
 function isEmergencyLeave($pdo, $leave_type_id) {
     $s = $pdo->prepare("SELECT name FROM leave_types WHERE id = :id");
@@ -111,6 +163,16 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                 $end_date = $start_date;
             }
 
+            // Handle attachment: encode and validate, then store into DB columns attachment (BYTEA) and attachment_type
+            $fileRes = encode_uploaded_file($_FILES['attachment'] ?? [], 8 * 1024 * 1024, [
+                'application/pdf', 'image/jpeg', 'image/png',
+                'application/msword',
+                'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+            ]);
+            if ($fileRes['error']) {
+                throw new Exception($fileRes['error']);
+            }
+
             // If annual: front-end should provide total_days and calculate end_date. We accept submitted values.
             // If submitted_total is null (user didn't provide), calculate server-side for non-annual leaves.
             if ($submitted_total === null) {
@@ -125,18 +187,29 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                 throw new Exception("Calculated total days is not valid.");
             }
 
+            // Build insert with attachment columns
             $sql = "INSERT INTO leave_requests 
-                    (user_id, leave_type_id, start_date, end_date, reason, total_days, status)
-                    VALUES (:user_id, :leave_type, :start_date, :end_date, :reason, :total_days, 'pending')";
+                    (user_id, leave_type_id, start_date, end_date, reason, total_days, attachment, attachment_type, status)
+                    VALUES (:user_id, :leave_type, :start_date, :end_date, :reason, :total_days, :attachment, :attachment_type, 'pending')";
+
             $stmt = $pdo->prepare($sql);
-            $stmt->execute([
-                ':user_id' => $user_id,
-                ':leave_type' => $leave_type,
-                ':start_date' => $start_date,
-                ':end_date' => $end_date,
-                ':reason' => $reason,
-                ':total_days' => $total_days
-            ]);
+            // bind common params
+            $stmt->bindValue(':user_id', $user_id, PDO::PARAM_INT);
+            $stmt->bindValue(':leave_type', $leave_type, PDO::PARAM_INT);
+            $stmt->bindValue(':start_date', $start_date, PDO::PARAM_STR);
+            $stmt->bindValue(':end_date', $end_date, PDO::PARAM_STR);
+            $stmt->bindValue(':reason', $reason, PDO::PARAM_STR);
+            $stmt->bindValue(':total_days', $total_days, PDO::PARAM_STR);
+
+            if ($fileRes['data'] !== null) {
+                $stmt->bindValue(':attachment', $fileRes['data'], PDO::PARAM_LOB);
+                $stmt->bindValue(':attachment_type', $fileRes['type'], PDO::PARAM_STR);
+            } else {
+                $stmt->bindValue(':attachment', null, PDO::PARAM_NULL);
+                $stmt->bindValue(':attachment_type', null, PDO::PARAM_NULL);
+            }
+
+            $stmt->execute();
 
             $success = "✅ Leave request submitted successfully! Total Days: $total_days";
         } catch (PDOException $e) {
@@ -194,7 +267,7 @@ footer {text-align: center; margin-top: 40px;color: #666;font-size: 0.9rem;}
         <div class="success-box"><?= htmlentities($success) ?></div>
       <?php endif; ?>
 
-      <form method="POST" action="">
+      <form method="POST" action="" enctype="multipart/form-data">
         <div class="form-grid">
           <div class="form-group">
             <label for="leave_type">Leave Type <span style="color: red;">*</span></label>
@@ -225,6 +298,12 @@ footer {text-align: center; margin-top: 40px;color: #666;font-size: 0.9rem;}
               <label for="total_days">Total Days <span style="color:red;">*</span></label>
               <input type="number" step="0.5" id="total_days" name="total_days" value="0" required>
               <small class="small-note">For Annual Leave: enter total days (0.5 steps) and the end date will be auto-calculated. For other types: choose start & end. For Emergency: you may enter 0.5 or 1.0 (end date will be start date).</small>
+          </div>
+
+          <div class="form-group" style="grid-column: 1 / -1;">
+              <label for="attachment">Attachment (optional)</label>
+              <input type="file" id="attachment" name="attachment" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx">
+              <small class="small-note">Max 8MB. Allowed: PDF, JPG, PNG, DOC/DOCX.</small>
           </div>
         </div>
 
@@ -490,8 +569,7 @@ totalDaysInput.addEventListener('blur', function() {
   if (isNaN(v)) v = 0.5;
   if (v < 0.75) v = 0.5; else v = 1.0;
   totalDaysInput.value = v.toFixed((v % 1 === 0) ? 0 : 1);
-});
-</script>
+});</script>
 
 </body>
 </html>
