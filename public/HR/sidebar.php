@@ -1,6 +1,6 @@
 <aside class="sidebar">
   <div class="user-profile">
-    <h2>LMS</h2>
+    <h2>LEAVE</h2>
     <div class="avatar"><?= strtoupper(substr($user['name'], 0, 1)); ?></div>
     <p class="user-name"><?= htmlspecialchars($user['name']); ?></p>
   </div>
@@ -20,7 +20,7 @@
       </li>
 
       <li class="has-dropdown">
-        <a href="javascript:void(0)">Leave Management <span class="arrow">›</span></a>
+        <a href="javascript:void(0)">My Leave  <span class="arrow">›</span></a>
         <ul class="dropdown-menu">
           <li><a href="hr-request.php">Request Leaves</a></li>
           <li><a href="hr-leaves.php">My Request History</a></li>

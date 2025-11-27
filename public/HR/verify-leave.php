@@ -110,7 +110,7 @@ function confirmVerify() {
     <div class="card">
         <h2>Verify Leave Request</h2><hr><br>
         <div class="info-grid">
-            <div class="label">Employee:</div><div><?= htmlspecialchars($request['employee_name']) ?></div>
+            <div class="label">Name:</div><div><?= htmlspecialchars($request['employee_name']) ?></div>
             <div class="label">Leave Type:</div><div><?= htmlspecialchars($request['leave_type']) ?></div>
             <div class="label">Start Date:</div><div><?= htmlspecialchars($request['start_date']) ?></div>
             <div class="label">End Date:</div><div><?= htmlspecialchars($request['end_date']) ?></div>
