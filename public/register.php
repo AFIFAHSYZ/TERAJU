@@ -136,7 +136,7 @@ $project = strtoupper(clean_input($_POST['project'] ?? ''));
             font-size:1rem; background:#f9fafb; color:#1f3b4d;
         }
         button.btn-full {
-            width:100%; background-color:#4f9eff; color:#fff; padding:14px;
+            width:100%; background-color:#334155; color:#fff; padding:14px;
             font-size:1rem; font-weight:600; border:none; border-radius:12px; cursor:pointer;
         }
         button.btn-full:hover { background-color:#3a7ddd; }
@@ -145,7 +145,7 @@ $project = strtoupper(clean_input($_POST['project'] ?? ''));
             margin-bottom:20px; border-radius:10px; font-size:0.95rem; text-align:center;
         }
         .form-footer { text-align:center; margin-top:15px; font-size:0.9rem; color:#64748b; }
-        .form-footer a { color:#4f9eff; text-decoration:none; font-weight:500; }
+        .form-footer a { color:#334155; text-decoration:none; font-weight:500; }
         .form-footer a:hover { text-decoration:underline; }
         @media(max-width:500px){
             .reg-container .card{padding:30px 20px;}
