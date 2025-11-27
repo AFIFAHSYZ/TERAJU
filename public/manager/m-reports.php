@@ -72,7 +72,7 @@ body {
 }
 .filter-bar button {
   padding: 8px 14px;
-  background: #3b82f6;
+  background: #334155;
   color: #fff;
   border: none;
   border-radius: 6px;
@@ -80,7 +80,7 @@ body {
   transition: background 0.2s;
 }
 .filter-bar button:hover {
-  background: #2563eb;
+  background: #212a36ff;
 }
 
 /* Table */
