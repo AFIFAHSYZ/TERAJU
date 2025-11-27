@@ -84,10 +84,10 @@ $employees = $stmt->fetchAll(PDO::FETCH_ASSOC);
 <style>
 .filter-form {display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 15px;}
 .filter-form input, .filter-form select {padding: 8px; border: 1px solid #ccc; border-radius: 6px;}
-.filter-form button {background: #007bff; color: white; border: none; padding: 8px 14px; border-radius: 6px; cursor: pointer; transition: 0.2s;}
-.filter-form button:hover {background: #0056b3;}
-.btn-view {background: #007bff; color: #fff; padding: 6px 12px; border-radius: 6px; text-decoration: none; font-size: 0.85rem; transition: 0.2s;}
-.btn-view:hover {background: #0056b3;}
+.filter-form button {background: #3a4750; color: white; border: none; padding: 8px 14px; border-radius: 6px; cursor: pointer; transition: 0.2s;}
+.filter-form button:hover {background: #262e34ff;}
+.btn-view {background: #3a4750; color: #fff; padding: 6px 12px; border-radius: 6px; text-decoration: none; font-size: 0.85rem; transition: 0.2s;}
+.btn-view:hover {background: #262e34ff;}
 .pagination {display: flex; justify-content: center; margin-top: 20px; gap: 6px; flex-wrap: wrap;}
 .pagination a, .pagination span {padding: 8px 14px; border-radius: 8px; text-decoration: none; border: 1px solid #e2e8f0; background: #fff; color: #334155; font-size: 14px; transition: all 0.2s; min-width: 36px; text-align: center;}
 .pagination a:hover {background: #2563eb; border-color: #2563eb; color: #fff;}
