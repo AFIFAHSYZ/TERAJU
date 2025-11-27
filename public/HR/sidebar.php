@@ -46,7 +46,7 @@
     .sidebar ul li a {display: flex; justify-content: space-between; align-items: center; padding: 10px 20px; font-size: 0.9rem; color: #fff; text-decoration: none;}
     .sidebar ul li a .arrow {font-size: 0.8rem; transition: transform 0.3s ease;}
     .sidebar ul li.active > a .arrow {transform: rotate(180deg);}
-    .sidebar ul li .dropdown-menu {display: none; flex-direction: column; background: #223b62ff; padding-left: 0;}
+    .sidebar ul li .dropdown-menu {display: none; flex-direction: column; background: #2a343aff; padding-left: 0;}
     .sidebar ul li.active .dropdown-menu {display: flex !important;flex-direction: column;}
     .sidebar ul li .dropdown-menu li a {padding: 8px 30px; font-size: 0.85rem;}
 </style></html>
