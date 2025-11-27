@@ -75,13 +75,13 @@ if ($user) {
     .login-container .form-group input { width: 100%; padding: 12px 15px; border: 1px solid #d1d5db; border-radius: 12px; font-size: 1rem; background: #f9fafb; color: #1f3b4d; transition: all 0.25s ease; }
     .login-container .form-group input:focus { border-color: #4f9eff; box-shadow: 0 0 0 3px rgba(79,158,255,0.2); outline: none; }
 
-    .login-container button.btn-full { width: 100%; background-color: #4f9eff; color: #fff; padding: 14px; font-size: 1rem; font-weight: 600; border: none; border-radius: 12px; cursor: pointer; transition: all 0.25s ease; }
-    .login-container button.btn-full:hover { background-color: #3a7ddd; transform: translateY(-2px); }
+    .login-container button.btn-full { width: 100%; background-color: #dc7907; color: #fff; padding: 14px; font-size: 1rem; font-weight: 600; border: none; border-radius: 12px; cursor: pointer; transition: all 0.25s ease; }
+    .login-container button.btn-full:hover { background-color: #b46204ff; transform: translateY(-2px); }
 
     .login-container .error-box { background-color: #ffe6e6; color: #e74c3c; padding: 12px; margin-bottom: 20px; border-radius: 10px; font-size: 0.95rem; text-align: center; }
 
     .login-container .form-footer { text-align: center; margin-top: 15px; font-size: 0.9rem; color: #64748b; }
-    .login-container .form-footer a { color: #4f9eff; text-decoration: none; font-weight: 500; }
+    .login-container .form-footer a { color: #334155; text-decoration: none; font-weight: 500; }
     .login-container .form-footer a:hover { text-decoration: underline; }
 
     /* Responsive */
