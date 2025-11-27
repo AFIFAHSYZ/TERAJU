@@ -134,6 +134,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 .back-link:hover {background: #bfdbfe; color: #1e40af;}
 .status-badge {padding: 4px 10px; border-radius: 6px; font-weight: 600;}
 .note {margin-top: 10px; color: #475569; font-size: 0.9rem;}
+.attachment-link {display:inline-flex; align-items:center; justify-content:center; width:30px; height:30px; border-radius:6px; background:transparent; color:#2563eb; text-decoration:none; border:1px solid transparent;}
+.attachment-link:hover {background:#eef2ff; border-color:#c7d2fe;}
+.attachment-name {font-weight:600; color:#0f172a;}
+.icon {width:16px; height:16px; display:inline-block; vertical-align:middle;}
+.small-note {margin-top:4px;color:#6b7280;font-size:0.9rem;}
 </style>
 <script>
 function confirmAction(type) {
@@ -151,7 +156,7 @@ function confirmAction(type) {
         <div class="card">
             <h2>Review Leave Request</h2><hr><br>
             <div class="info-grid">
-                <div class="label">Employee:</div><div><?= htmlspecialchars($request['employee_name']) ?></div>
+                <div class="label">Name:</div><div><?= htmlspecialchars($request['employee_name']) ?></div>
                 <div class="label">Type:</div><div><?= htmlspecialchars($request['leave_type']) ?></div>
                 <div class="label">Start Date:</div><div><?= htmlspecialchars($request['start_date']) ?></div>
                 <div class="label">End Date:</div><div><?= htmlspecialchars($request['end_date']) ?></div>
@@ -175,6 +180,41 @@ function confirmAction(type) {
                     <div><?= htmlspecialchars($request['approved_by_name']) ?> on <?= htmlspecialchars($request['decision_date']) ?></div>
                 <?php endif; ?>
                 <div class="label">Reason:</div><div><?= htmlspecialchars($request['reason'] ?: '-') ?></div>
+
+                <!-- Attachment row with icons for view and download -->
+                <div class="label">Attachment:</div>
+                <div>
+                    <?php if (!empty($request['attachment'])): ?>
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <?php if (!empty($request['attachment_type'])): ?>
+                            <div class="small-note"><?= htmlspecialchars($request['attachment_type']) ?></div>
+                        <?php endif; ?>
+
+                            <!-- View / Preview icon: opens preview page in a new tab -->
+                            <a class="attachment-link" href="../preview-attachment.php?id=<?= (int)$request['id'] ?>" target="_blank" rel="noopener" title="View attachment">
+                                <!-- eye icon -->
+                                <svg class="icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                                    <path d="M2.458 12C3.732 7.943 7.523 5 12 5s8.268 2.943 9.542 7c-1.274 4.057-5.065 7-9.542 7s-8.268-2.943-9.542-7z" stroke="#000000ff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                                    <circle cx="12" cy="12" r="3" stroke="#000000ff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                            </a>
+
+                            <!-- Download icon: points to download endpoint; 'download' attribute used as hint -->
+                            <a class="attachment-link" href="../download-attachment.php?id=<?= (int)$request['id'] ?>" target="_blank" rel="noopener" title="Download attachment" download>
+                                <!-- download icon -->
+                                <svg class="icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" stroke="#000000ff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                                    <path d="M7 10l5 5 5-5" stroke="#000000ff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                                    <path d="M12 15V3" stroke="#000000ff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                            </a>
+                        </div>
+
+                    <?php else: ?>
+                        <span style="color:#6b7280;">No attachment</span>
+                    <?php endif; ?>
+                </div>
+
             </div>
             <br>
 
