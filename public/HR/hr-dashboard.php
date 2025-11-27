@@ -85,7 +85,7 @@ $requests = $stmt->fetchAll(PDO::FETCH_ASSOC);
     .stat-card h3 {
         margin: 0;
         font-size: 2em;
-        color: #2563eb;
+        color: #3a4750;
     }
     .stat-card p {
         color: #475569;
@@ -173,7 +173,7 @@ $requests = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
                             <td>
                                 <a href="verify-leave.php?id=<?= $r['id'] ?>"             
-                                        style="background:#007bff;color:white;padding:6px 10px;border-radius:5px;text-decoration:none;">Review</a>
+                                        style="background:#3a4750;color:white;padding:6px 10px;border-radius:5px;text-decoration:none;">Review</a>
                             </td>
                         </tr>
                     <?php endforeach; ?>
