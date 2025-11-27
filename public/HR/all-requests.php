@@ -104,20 +104,13 @@ $totalPages = ceil($totalRows / $limit);
 
   <style>
     .filter-form { display:flex; flex-wrap:wrap; gap:10px; margin-bottom:15px; }
-    .filter-form input, .filter-form select {
-      padding: 8px; border:1px solid #ccc; border-radius:6px;
-    }
-    .filter-form button {
-      background:#007bff; color:white; border:none;
-      padding:8px 14px; border-radius:6px; cursor:pointer;
-    }
-    .filter-form button:hover { background:#0056b3; }
-
+    .filter-form input, .filter-form select {padding: 8px; border:1px solid #ccc; border-radius:6px;}
+    .filter-form button {background:#3a4750; color:white; border:none;padding:8px 14px; border-radius:6px; cursor:pointer;}
+    .filter-form button:hover { background:#2a333aff; }
     .leave-table { width:100%; border-collapse:collapse; font-size:15px; }
     .leave-table th, .leave-table td { padding:6px 8px; text-align:left; }
     .leave-table th { background:#f4f4f4; }
     .leave-table tr:nth-child(even) { background:#fafafa; }
-
     .pagination { margin-top:20px; display:flex; gap:6px; }
     .pagination a {
       padding:6px 10px; border-radius:5px; text-decoration:none;
@@ -190,7 +183,7 @@ $totalPages = ceil($totalRows / $limit);
 
             <td>
               <a href="verify-leave.php?id=<?= $r['id'] ?>"
-                 style="background:#007bff;color:white;padding:6px 10px;border-radius:5px;text-decoration:none;">
+                 style="background:#3a4750;color:white;padding:6px 10px;border-radius:5px;text-decoration:none;">
                 Review
               </a>
             </td>
