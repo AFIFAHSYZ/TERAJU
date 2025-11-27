@@ -74,8 +74,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 .form-group { margin-bottom: 15px; }
 .form-group label { display: block; font-weight: 600; margin-bottom: 6px; }
 .form-group input { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #d1d5db; }
-.btn-full { display: block; width: 100%; padding: 10px; background: #2563eb; color: #fff; border: none; border-radius: 8px; font-size: 1rem; cursor: pointer; transition: background 0.3s; }
-.btn-full:hover { background: #1e40af; }
+.btn-full { display: block; width: 100%; padding: 10px; background: #3a4750; color: #fff; border: none; border-radius: 8px; font-size: 1rem; cursor: pointer; transition: background 0.3s; }
+.btn-full:hover { background: #2a333aff; }
 .success-box, .error-box { padding: 10px; border-radius: 6px; margin-bottom: 15px; }
 .success-box { background: #dcfce7; color: #166534; }
 .error-box { background: #fee2e2; color: #991b1b; }
@@ -107,8 +107,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <p><strong>Date Joined:</strong> <?= htmlspecialchars($user['date_joined']) ?></p>
         <p><strong>Religion:</strong> <?= htmlspecialchars($user['religion']) ?></p>
         <p><strong>Race:</strong> <?= htmlspecialchars($user['race']) ?></p>
-
-      </div>
+        <p><strong>Project:</strong> <?= htmlspecialchars($user['race']) ?></p>
+        <p><strong>Contract:</strong> <?= htmlspecialchars($user['race']) ?></p>
+            </div>
 
 
 
@@ -135,7 +136,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       </form>
 
       <div style="text-align:center; margin-top:15px;">
-        <a href="emp-dashboard.php" style="color:#2563eb; text-decoration:none;">← Back to Dashboard</a>
+        <a href="hr-dashboard.php" style="color:#2563eb; text-decoration:none;">← Back to Dashboard</a>
       </div>
     </div>
   </div>
